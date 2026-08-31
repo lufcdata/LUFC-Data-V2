@@ -3,6 +3,7 @@
 from __future__ import annotations
 import argparse
 import os
+from datetime import date
 
 EXPECTED_COUNTS = {
     "matches": 4856,
@@ -47,7 +48,7 @@ def main() -> None:
         require("goals without match", scalar(cur, "select count(*) from goals g left join matches m using(match_id) where m.match_id is null"), 0)
 
         cur.execute("select match_date,array_agg(match_id order by match_id) from matches where match_date in (date '1920-09-11',date '1920-09-25') group by match_date order by match_date")
-        require("same-date regression matches", cur.fetchall(), [( __import__('datetime').date(1920,9,11), [5,6]), (__import__('datetime').date(1920,9,25), [8,9])])
+        require("same-date regression matches", cur.fetchall(), [(date(1920,9,11), [5,6]), (date(1920,9,25), [8,9])])
 
         require("Ellson correction", scalar(cur, "select count(*) from goals where legacy_goal_number=10 and match_id=6"), 1)
         require("Becchio correction", scalar(cur, "select count(*) from goals g join matches m using(match_id) where g.legacy_goal_number=6046 and g.match_id=4011 and m.match_date=date '2009-05-14'"), 1)
@@ -57,6 +58,29 @@ def main() -> None:
         require("career totals rows", scalar(cur, "select count(*) from v_player_career_totals"), 902)
         require("match context rows", scalar(cur, "select count(*) from v_match_player_context"), 58527)
         require("duplicate appearance numbers", scalar(cur, "select count(*) from (select player_id,appearance_number from v_match_player_context group by 1,2 having count(*)>1) q"), 0)
+        require("duplicate competition appearance numbers", scalar(cur, "select count(*) from (select player_id,competition_id,competition_appearance_number from v_match_player_context group by 1,2,3 having count(*)>1) q"), 0)
+
+        require(
+            "manager context rows",
+            scalar(cur, "select count(*) from v_match_manager_context"),
+            scalar(cur, "select count(*) from matches where manager_spell_id is not null"),
+        )
+        require("duplicate manager match numbers", scalar(cur, "select count(*) from (select manager_id,manager_match_number from v_match_manager_context group by 1,2 having count(*)>1) q"), 0)
+        require("duplicate manager spell match numbers", scalar(cur, "select count(*) from (select manager_spell_id,spell_match_number from v_match_manager_context group by 1,2 having count(*)>1) q"), 0)
+
+        require("Reaney/Hunter partnership", scalar(cur, "select appearances_together from v_teammate_partnerships where (player_1='Paul Reaney' and player_2='Norman Hunter') or (player_1='Norman Hunter' and player_2='Paul Reaney')"), 637)
+
+        require("Gary Kelly 75th PL appearance", scalar(cur, "select count(*) from v_match_player_context where display_name='Gary Kelly' and competition='Premier League' and competition_appearance_milestone=75 and match_date=date '1995-03-22'"), 1)
+        require("Gary Kelly 100th PL appearance", scalar(cur, "select count(*) from v_match_player_context where display_name='Gary Kelly' and competition='Premier League' and competition_appearance_milestone=100 and match_date=date '1995-12-16'"), 1)
+        require("Gary Kelly 250th PL appearance", scalar(cur, "select count(*) from v_match_player_context where display_name='Gary Kelly' and competition='Premier League' and competition_appearance_milestone=250 and match_date=date '2001-12-22'"), 1)
+        require("Viduka 50th PL goal", scalar(cur, "select count(*) from v_match_player_context where display_name='Mark Viduka' and competition='Premier League' and competition_goal_milestone=50 and match_date=date '2003-08-30'"), 1)
+
+        require("Bielsa 50th match", scalar(cur, "select count(*) from v_match_manager_context where manager='Marcelo Bielsa' and manager_match_milestone=50 and match_date=date '2019-05-11'"), 1)
+        require("Bielsa 100th match", scalar(cur, "select count(*) from v_match_manager_context where manager='Marcelo Bielsa' and manager_match_milestone=100 and match_date=date '2020-07-22'"), 1)
+        require("Bielsa 150th match", scalar(cur, "select count(*) from v_match_manager_context where manager='Marcelo Bielsa' and manager_match_milestone=150 and match_date=date '2021-10-16'"), 1)
+        require("Bielsa 25th win", scalar(cur, "select count(*) from v_match_manager_context where manager='Marcelo Bielsa' and manager_win_milestone=25 and match_date=date '2019-04-09'"), 1)
+        require("Bielsa 50th win", scalar(cur, "select count(*) from v_match_manager_context where manager='Marcelo Bielsa' and manager_win_milestone=50 and match_date=date '2020-06-27'"), 1)
+        require("Bielsa 75th win", scalar(cur, "select count(*) from v_match_manager_context where manager='Marcelo Bielsa' and manager_win_milestone=75 and match_date=date '2021-08-24'"), 1)
 
     print("DATABASE LOAD V1 VALIDATION PASSED")
 
