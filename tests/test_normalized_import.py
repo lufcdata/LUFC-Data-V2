@@ -23,3 +23,8 @@ def test_date_parser_handles_current_mixed_format():
 def test_own_goal_variants():
     assert mod.is_own_goal({"Goal Scorer": "Phil King (0.G.)", "Goal Type": "Own Goal"})
     assert mod.is_own_goal({"Goal Scorer": "Jack Hodgson (O.G.)", "Goal Type": ""})
+
+
+def test_match_for_against_are_leeds_relative_not_host_relative():
+    """MATCHES.csv F/A are Leeds For/Against regardless of home/away venue."""
+    assert mod.match_scores({"F": "3", "A": "0"}) == (3, 0)
