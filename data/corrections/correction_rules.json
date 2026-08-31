@@ -19,23 +19,20 @@
   },
   {
     "source_table": "GOALS NEW.csv",
-    "row_from_end": 3,
-    "where": {"#": "7230"},
+    "where": {"#": "7230", "Goal Scorer": "Daniel James", "Date": "25/08/2026", "MATCHID": "4855", "Minute": "50"},
     "set": {"#": "7280"},
-    "reason": "User-confirmed numbering correction: the third-last goal is goal 7280, not duplicated legacy number 7230."
+    "reason": "User-confirmed numbering correction: Daniel James vs Nottingham Forest is goal 7280, not duplicated legacy number 7230."
   },
   {
     "source_table": "GOALS NEW.csv",
-    "row_from_end": 2,
-    "where": {"#": "7231"},
+    "where": {"#": "7231", "Goal Scorer": "James Justin", "Date": "25/08/2026", "MATCHID": "4855", "Minute": "75"},
     "set": {"#": "7281"},
-    "reason": "User-confirmed numbering correction: the second-last goal is goal 7281, not duplicated legacy number 7231."
+    "reason": "User-confirmed numbering correction: James Justin vs Nottingham Forest is goal 7281, not duplicated legacy number 7231."
   },
   {
     "source_table": "GOALS NEW.csv",
-    "row_from_end": 1,
-    "where": {"#": "7232"},
+    "where": {"#": "7232", "Goal Scorer": "Dominic Calvert-Lewin", "Date": "30/08/2026", "MATCHID": "4856", "Minute": "79"},
     "set": {"#": "7282"},
-    "reason": "User-confirmed numbering correction: the final goal is goal 7282, not duplicated legacy number 7232."
+    "reason": "User-confirmed numbering correction: Dominic Calvert-Lewin vs Brentford is goal 7282, not duplicated legacy number 7232."
   }
 ]
