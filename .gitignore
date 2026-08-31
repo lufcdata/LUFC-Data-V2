@@ -13,8 +13,9 @@ __pycache__/
 node_modules/
 dist/
 
-# Local source exports: immutable working inputs, not repository data
+# Local source exports and generated normalized builds
 /source_data/
+/build/
 *.db
 *.sqlite
 
