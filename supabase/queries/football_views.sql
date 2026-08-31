@@ -82,7 +82,7 @@ join players p1 on p1.player_id=a.player_id
 join players p2 on p2.player_id=b.player_id
 group by a.player_id, b.player_id, p1.display_name, p2.display_name;
 
--- Match-centre context and milestones.
+-- Match-centre player context and milestones.
 -- Stable Match ID is the deterministic tie-breaker for same-date historical matches.
 create or replace view v_match_player_context as
 with goal_counts as (
@@ -94,6 +94,8 @@ with goal_counts as (
   select
     pm.match_id,
     m.match_date,
+    m.competition_id,
+    coalesce(cn.display_name,c.canonical_name) as competition,
     pm.player_id,
     p.display_name,
     pm.started,
@@ -110,33 +112,75 @@ with goal_counts as (
   from player_matches pm
   join matches m on m.match_id=pm.match_id
   join players p on p.player_id=pm.player_id
+  left join competitions c on c.competition_id=m.competition_id
+  left join competition_names cn on cn.competition_name_id=m.competition_name_id
   left join goal_counts gc on gc.player_id=pm.player_id and gc.match_id=pm.match_id
 ), numbered as (
   select
     b.*,
     row_number() over (partition by player_id order by match_date,match_id)::bigint as appearance_number,
     row_number() over (partition by player_id order by match_date desc,match_id desc)::bigint as reverse_appearance_number,
+    row_number() over (partition by player_id,competition_id order by match_date,match_id)::bigint as competition_appearance_number,
     sum(case when started then 1 else 0 end) over (partition by player_id order by match_date,match_id rows unbounded preceding)::bigint as start_number,
     sum(case when substitute then 1 else 0 end) over (partition by player_id order by match_date,match_id rows unbounded preceding)::bigint as substitute_appearance_number,
     sum(case when was_captain then 1 else 0 end) over (partition by player_id order by match_date,match_id rows unbounded preceding)::bigint as captaincy_number,
-    sum(goals_in_match) over (partition by player_id order by match_date,match_id rows unbounded preceding)::bigint as career_goals_after_match
+    sum(goals_in_match) over (partition by player_id order by match_date,match_id rows unbounded preceding)::bigint as career_goals_after_match,
+    sum(goals_in_match) over (partition by player_id,competition_id order by match_date,match_id rows unbounded preceding)::bigint as competition_goals_after_match
   from base b
 )
 select
   n.*,
   (appearance_number=1) as is_debut,
   (reverse_appearance_number=1) as is_final_appearance,
-  (appearance_number in (10,50,100,250,500)) as is_appearance_milestone,
-  case when appearance_number in (10,50,100,250,500) then appearance_number end as appearance_milestone,
-  (started and start_number in (10,50,100,250,500)) as is_start_milestone,
-  case when started and start_number in (10,50,100,250,500) then start_number end as start_milestone,
-  (was_captain and captaincy_number in (1,10,50,100,250)) as is_captaincy_milestone,
-  case when was_captain and captaincy_number in (1,10,50,100,250) then captaincy_number end as captaincy_milestone,
+  (appearance_number in (10,25,50,75,100,150,200,250,300,400,500)) as is_appearance_milestone,
+  case when appearance_number in (10,25,50,75,100,150,200,250,300,400,500) then appearance_number end as appearance_milestone,
+  (started and start_number in (10,25,50,75,100,150,200,250,300,400,500)) as is_start_milestone,
+  case when started and start_number in (10,25,50,75,100,150,200,250,300,400,500) then start_number end as start_milestone,
+  (was_captain and captaincy_number in (1,10,25,50,75,100,150,200,250)) as is_captaincy_milestone,
+  case when was_captain and captaincy_number in (1,10,25,50,75,100,150,200,250) then captaincy_number end as captaincy_milestone,
   (goals_in_match>0 and career_goals_after_match-goals_in_match < 1 and career_goals_after_match >= 1) as is_first_goal,
   case
+    when goals_in_match>0 and career_goals_after_match-goals_in_match < 200 and career_goals_after_match >= 200 then 200
+    when goals_in_match>0 and career_goals_after_match-goals_in_match < 150 and career_goals_after_match >= 150 then 150
     when goals_in_match>0 and career_goals_after_match-goals_in_match < 100 and career_goals_after_match >= 100 then 100
+    when goals_in_match>0 and career_goals_after_match-goals_in_match < 75 and career_goals_after_match >= 75 then 75
     when goals_in_match>0 and career_goals_after_match-goals_in_match < 50 and career_goals_after_match >= 50 then 50
     when goals_in_match>0 and career_goals_after_match-goals_in_match < 25 and career_goals_after_match >= 25 then 25
     when goals_in_match>0 and career_goals_after_match-goals_in_match < 10 and career_goals_after_match >= 10 then 10
-  end as goal_milestone
+  end as goal_milestone,
+  (competition_appearance_number in (10,25,50,75,100,150,200,250)) as is_competition_appearance_milestone,
+  case when competition_appearance_number in (10,25,50,75,100,150,200,250) then competition_appearance_number end as competition_appearance_milestone,
+  case
+    when goals_in_match>0 and competition_goals_after_match-goals_in_match < 100 and competition_goals_after_match >= 100 then 100
+    when goals_in_match>0 and competition_goals_after_match-goals_in_match < 75 and competition_goals_after_match >= 75 then 75
+    when goals_in_match>0 and competition_goals_after_match-goals_in_match < 50 and competition_goals_after_match >= 50 then 50
+    when goals_in_match>0 and competition_goals_after_match-goals_in_match < 25 and competition_goals_after_match >= 25 then 25
+    when goals_in_match>0 and competition_goals_after_match-goals_in_match < 10 and competition_goals_after_match >= 10 then 10
+  end as competition_goal_milestone
 from numbered n;
+
+-- Manager context is cumulative across all Leeds spells for the same manager identity.
+-- Spell match number is also retained so individual tenures can be presented separately.
+create or replace view v_match_manager_context as
+with base as (
+  select
+    m.match_id,
+    m.match_date,
+    m.manager_spell_id,
+    ms.manager_id,
+    mgr.canonical_name as manager,
+    m.result,
+    row_number() over (partition by ms.manager_id order by m.match_date,m.match_id)::bigint as manager_match_number,
+    row_number() over (partition by m.manager_spell_id order by m.match_date,m.match_id)::bigint as spell_match_number,
+    sum(case when m.result='Won' then 1 else 0 end) over (partition by ms.manager_id order by m.match_date,m.match_id rows unbounded preceding)::bigint as manager_wins_after_match
+  from matches m
+  join manager_spells ms on ms.manager_spell_id=m.manager_spell_id
+  join managers mgr on mgr.manager_id=ms.manager_id
+)
+select
+  b.*,
+  (manager_match_number=1) as is_first_leeds_match,
+  (manager_match_number in (10,25,50,75,100,150,200,250,300,400,500)) as is_manager_match_milestone,
+  case when manager_match_number in (10,25,50,75,100,150,200,250,300,400,500) then manager_match_number end as manager_match_milestone,
+  case when result='Won' and manager_wins_after_match in (1,10,25,50,75,100,150,200,250,300) then manager_wins_after_match end as manager_win_milestone
+from base b;
