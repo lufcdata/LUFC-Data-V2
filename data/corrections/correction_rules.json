@@ -16,5 +16,23 @@
     "where": {"Goal Scorer": "Ray Hankin", "Date": "1978-04-26", "Opponent": "Aston Villa", "MATCHID": "2441"},
     "set": {"Venue": "Away"},
     "reason": "Confirmed the goal was scored away; Match 2441 is away."
+  },
+  {
+    "source_table": "GOALS NEW.csv",
+    "where": {"#": "7230", "source_row_from_end": "3"},
+    "set": {"#": "7280"},
+    "reason": "User-confirmed numbering correction: the third-last goal is goal 7280, not duplicated legacy number 7230."
+  },
+  {
+    "source_table": "GOALS NEW.csv",
+    "where": {"#": "7231", "source_row_from_end": "2"},
+    "set": {"#": "7281"},
+    "reason": "User-confirmed numbering correction: the second-last goal is goal 7281, not duplicated legacy number 7231."
+  },
+  {
+    "source_table": "GOALS NEW.csv",
+    "where": {"#": "7232", "source_row_from_end": "1"},
+    "set": {"#": "7282"},
+    "reason": "User-confirmed numbering correction: the final goal is goal 7282, not duplicated legacy number 7232."
   }
 ]
