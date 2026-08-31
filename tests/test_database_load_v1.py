@@ -21,6 +21,23 @@ def test_match_context_includes_age_appearance_and_milestones():
         "appearance_milestone",
         "goal_milestone",
         "captaincy_milestone",
+        "competition_appearance_number",
+        "competition_appearance_milestone",
+        "competition_goals_after_match",
+        "competition_goal_milestone",
+    ):
+        assert token in sql
+
+
+def test_manager_context_includes_match_and_win_milestones():
+    sql = (ROOT / "supabase" / "queries" / "football_views.sql").read_text(encoding="utf-8")
+    for token in (
+        "v_match_manager_context",
+        "manager_match_number",
+        "spell_match_number",
+        "manager_wins_after_match",
+        "manager_match_milestone",
+        "manager_win_milestone",
     ):
         assert token in sql
 
