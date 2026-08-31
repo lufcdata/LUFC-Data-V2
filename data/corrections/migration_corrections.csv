@@ -1,0 +1,5 @@
+source_table,source_locator,field_name,source_value,corrected_value,reason,status,confirmed_by,confirmed_at
+GOALS NEW.csv,"Merton Ellson | 1920-09-11 | Leicester City | Division Two",MATCHID,5,6,"Same-date double-header: row describes Leicester City away (Match 6), not Boothtown home (Match 5).",confirmed,user,2026-08-31
+GOALS NEW.csv,"Luciano Becchio | Millwall | 2009 play-off",Date,2009-05-15,2009-05-14,"Confirmed correct match date; resolves to Match 4011.",confirmed,user,2026-08-31
+GOALS NEW.csv,"Luciano Becchio | Millwall | 2009-05-14",MATCHID,,4011,"Match 4011 is Millwall home, Play-Offs, 1-1 on corrected date.",confirmed,audit,2026-08-31
+GOALS NEW.csv,"Ray Hankin | Aston Villa | 1978-04-26",Venue,Home,Away,"Confirmed goal was scored away; Match 2441 is away.",confirmed,user,2026-08-31
