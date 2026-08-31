@@ -1,0 +1,4 @@
+alias,legacy_player_id,reason
+Andy Hughes,622,Assist source uses nickname; Players table uses Andrew Hughes.
+Andrew Keogh,574,Assist source uses formal first name; Players table uses Andy Keogh.
+Andrew Lonergan,691,Assist source uses formal first name; Players table uses Andy Lonergan.
