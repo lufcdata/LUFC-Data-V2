@@ -64,3 +64,21 @@ def test_executable_database_validator_protects_historical_regressions():
         "DATABASE LOAD V1 VALIDATION PASSED",
     ):
         assert token in source
+
+
+def test_independent_intelligence_validator_protects_unique_features():
+    source = (ROOT / "scripts" / "validate_historical_intelligence.py").read_text(encoding="utf-8")
+    for token in (
+        "Paul Reaney",
+        "Norman Hunter",
+        "637",
+        "Gary Kelly",
+        "1995-03-22",
+        "2001-12-22",
+        "Mark Viduka",
+        "2003-08-30",
+        "Marcelo Bielsa",
+        "2020-07-22",
+        "HISTORICAL INTELLIGENCE VALIDATION PASSED",
+    ):
+        assert token in source
