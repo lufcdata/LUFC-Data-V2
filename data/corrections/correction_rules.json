@@ -19,19 +19,22 @@
   },
   {
     "source_table": "GOALS NEW.csv",
-    "where": {"#": "7230", "source_row_from_end": "3"},
+    "row_from_end": 3,
+    "where": {"#": "7230"},
     "set": {"#": "7280"},
     "reason": "User-confirmed numbering correction: the third-last goal is goal 7280, not duplicated legacy number 7230."
   },
   {
     "source_table": "GOALS NEW.csv",
-    "where": {"#": "7231", "source_row_from_end": "2"},
+    "row_from_end": 2,
+    "where": {"#": "7231"},
     "set": {"#": "7281"},
     "reason": "User-confirmed numbering correction: the second-last goal is goal 7281, not duplicated legacy number 7231."
   },
   {
     "source_table": "GOALS NEW.csv",
-    "where": {"#": "7232", "source_row_from_end": "1"},
+    "row_from_end": 1,
+    "where": {"#": "7232"},
     "set": {"#": "7282"},
     "reason": "User-confirmed numbering correction: the final goal is goal 7282, not duplicated legacy number 7232."
   }
