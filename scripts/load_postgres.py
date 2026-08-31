@@ -15,17 +15,51 @@ TABLES = [
     "player_aliases", "managers", "manager_spells", "matches", "player_matches", "goals"
 ]
 
+IDENTITY_TABLES = [
+    ("seasons", "season_id"),
+    ("clubs", "club_id"),
+    ("competitions", "competition_id"),
+    ("competition_names", "competition_name_id"),
+    ("players", "player_id"),
+    ("player_aliases", "player_alias_id"),
+    ("managers", "manager_id"),
+    ("manager_spells", "manager_spell_id"),
+    ("player_matches", "player_match_id"),
+    ("goals", "goal_id"),
+]
+
 
 def rows(path: Path):
     with path.open("r", encoding="utf-8", newline="") as f:
         yield from csv.DictReader(f)
 
 
+def reset_identity_sequences(cur, sql) -> None:
+    """Move identity sequences beyond explicitly loaded IDs for safe future inserts."""
+    for table, column in IDENTITY_TABLES:
+        cur.execute("select pg_get_serial_sequence(%s,%s)", (table, column))
+        sequence = cur.fetchone()[0]
+        if not sequence:
+            continue
+        cur.execute(
+            sql.SQL("select coalesce(max({}),0) from {}").format(sql.Identifier(column), sql.Identifier(table))
+        )
+        maximum = int(cur.fetchone()[0])
+        if maximum > 0:
+            cur.execute("select setval(%s,%s,true)", (sequence, maximum))
+        else:
+            cur.execute("select setval(%s,1,false)", (sequence,))
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--build-dir", type=Path, default=Path("build/normalized"))
     parser.add_argument("--database-url", default=os.getenv("DATABASE_URL"))
-    parser.add_argument("--replace", action="store_true", help="Delete V2 table data before loading. Use only on disposable/dev DBs.")
+    parser.add_argument(
+        "--replace",
+        action="store_true",
+        help="TRUNCATE V2 data before loading. Only for disposable/development databases.",
+    )
     args = parser.parse_args()
     if not args.database_url:
         raise SystemExit("DATABASE_URL or --database-url is required")
@@ -41,29 +75,39 @@ def main() -> None:
         raise SystemExit("Missing normalized files:\n" + "\n".join(missing))
 
     with psycopg.connect(args.database_url) as conn:
-        with conn.cursor() as cur:
-            if args.replace:
-                cur.execute("TRUNCATE goals, player_matches, matches, manager_spells, managers, player_aliases, players, competition_names, competitions, clubs, seasons RESTART IDENTITY CASCADE")
-            for table in TABLES:
-                path = args.build_dir / f"{table}.csv"
-                iterator = rows(path)
-                first = next(iterator, None)
-                if first is None:
-                    print(f"{table}: 0")
-                    continue
-                columns = list(first)
-                statement = sql.SQL("INSERT INTO {} ({}) VALUES ({})").format(
-                    sql.Identifier(table),
-                    sql.SQL(",").join(map(sql.Identifier, columns)),
-                    sql.SQL(",").join(sql.Placeholder() for _ in columns),
-                )
-                count = 0
-                for row in (first, *iterator):
-                    values = [None if row[c] == "" else row[c] for c in columns]
-                    cur.execute(statement, values)
+        try:
+            with conn.cursor() as cur:
+                if args.replace:
+                    cur.execute(
+                        "TRUNCATE goals, player_matches, matches, manager_spells, managers, "
+                        "player_aliases, players, competition_names, competitions, clubs, seasons "
+                        "RESTART IDENTITY CASCADE"
+                    )
+                for table in TABLES:
+                    path = args.build_dir / f"{table}.csv"
+                    iterator = rows(path)
+                    first = next(iterator, None)
+                    if first is None:
+                        print(f"{table}: 0")
+                        continue
+                    columns = list(first)
+                    statement = sql.SQL("INSERT INTO {} ({}) VALUES ({})").format(
+                        sql.Identifier(table),
+                        sql.SQL(",").join(map(sql.Identifier, columns)),
+                        sql.SQL(",").join(sql.Placeholder() for _ in columns),
+                    )
+                    count = 0
+                    cur.execute(statement, [None if first[c] == "" else first[c] for c in columns])
                     count += 1
-                print(f"{table}: {count}")
-        conn.commit()
+                    for row in iterator:
+                        cur.execute(statement, [None if row[c] == "" else row[c] for c in columns])
+                        count += 1
+                    print(f"{table}: {count}")
+                reset_identity_sequences(cur, sql)
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
 
 
 if __name__ == "__main__":
