@@ -1,0 +1,20 @@
+[
+  {
+    "source_table": "GOALS NEW.csv",
+    "where": {"Goal Scorer": "Merton Ellson", "Date": "1920-09-11", "Opponent": "Leicester City", "Comp": "Division Two"},
+    "set": {"MATCHID": "6"},
+    "reason": "Same-date double-header: row is Leicester City away (Match 6), not Boothtown home (Match 5)."
+  },
+  {
+    "source_table": "GOALS NEW.csv",
+    "where": {"Goal Scorer": "Luciano Becchio", "Date": "2009-05-15", "Opponent": "Millwall", "Comp": "Play-Offs"},
+    "set": {"Date": "2009-05-14", "MATCHID": "4011"},
+    "reason": "Confirmed correct match date and Match ID for the Millwall play-off goal."
+  },
+  {
+    "source_table": "GOALS NEW.csv",
+    "where": {"Goal Scorer": "Ray Hankin", "Date": "1978-04-26", "Opponent": "Aston Villa", "MATCHID": "2441"},
+    "set": {"Venue": "Away"},
+    "reason": "Confirmed the goal was scored away; Match 2441 is away."
+  }
+]
