@@ -2,7 +2,7 @@
 
 ## Scope
 
-This document records the current forensic audit state for opposition managerial authority across all 4,856 LUFC fixtures.
+This document records the finish-line forensic audit state for opposition managerial authority across all 4,856 LUFC fixtures.
 
 ## Golden rules
 
@@ -14,96 +14,88 @@ This document records the current forensic audit state for opposition managerial
 - Joint/co-manager authority must be represented by separate person links.
 - Exact spell dates and caretaker/interim/permanent labels are enrichment and are not prerequisites for fixture-level Gold.
 - Do not guess an exact transition date when evidence only establishes a transition window.
+- User verification is mandatory before Gold lock.
 
-## Current live relational state
+## Final live relational reconciliation
 
-Migration `create_relational_opposition_manager_assignments` has been applied to live Supabase and mirrored on branch `opposition-managers-gold-v1`.
+Latest live Supabase reconciliation after the concentrated forensic audit and user verification:
 
-Current reconciliation after the Livermore/Clemence joint-authority correction:
-
+- 4,856 matches
 - 4,856 managerial assignments
-- 4,856 distinct matches represented
-- 0 assignments missing required structural representation
-- 0 joint assignments with fewer than two people
-- 0 raw provenance mismatches
-- 0 authority mismatches between matches and relational assignments
-- authority population: 4,816 individual / 31 committee / 9 joint
+- 0 missing assignments
+- 0 raw-source provenance mismatches
+- 0 canonical-name mismatches between `matches` and relational assignments
+- 0 authority mismatches between `matches` and relational assignments
+- 0 malformed joint assignments (every joint assignment has at least two linked people)
+- 0 malformed individual assignments (every individual assignment has exactly one linked person)
+- authority population: 4,810 individual / 15 joint/shared / 31 committee
+- 130 high-risk, transition, corrected-identity or exception fixtures explicitly marked `forensically_validated`
 
-These counts describe the current structural state. They are **not** a claim that Opposition Managers has been signed off Gold.
+The 130 count is an explicit forensic-review subset, not an implication that the remaining ordinary fixtures are invalid.
 
-## Billy Dougall / Ray Bennion — Burnley v Leeds, 23 Nov 1957
+## User-verified representative cases
 
-- Raw provenance remains `Billy Dougal` plus the Scotland flag.
-- Canonical spelling is corrected to `Billy Dougall`.
-- Evidence establishes that Dougall was hospitalised during November 1957 and Ray Bennion assumed first-team duties, but the exact handover date has not been established strongly enough to move the 23 Nov fixture.
-- Gold-safe current decision: retain Billy Dougall provisionally for Match 1345; preserve Ray Bennion as an unresolved authority possibility; do not invent a transition date.
+The user directly verified the following fixture-level authorities on 1 Sep 2026:
 
-## Structurally proven non-ordinary cases now represented relationally
+- Match 1345 — Burnley v Leeds, 23 Nov 1957: **Billy Dougall**, individual authority. Raw source spelling `Billy Dougal` remains preserved; canonical spelling is `Billy Dougall`. The earlier Dougall/Bennion uncertainty is closed for this fixture.
+- Match 3293 — Leeds v Norwich City, 6 May 1995: **Gary Megson**, not stale raw-source John Deehan.
+- Match 3431 — Leeds v Tottenham Hotspur, 4 Mar 1998: **Christian Gross**.
+- Match 3796 — Leeds v Millwall, 7 Aug 2005: **Colin Lee**, not stale raw-source Dennis Wise.
+- Match 3909 — Gillingham v Leeds, 29 Sep 2007: **Iffy Onuora + Mick Docherty**, joint caretaker managers.
 
-- Match 240: Manchester City selection committee; Albert Alexander linked as lead person.
-- Matches 1346 and 1367: Arthur Turner + Pat Beasley, joint Birmingham City authority.
-- Match 2870: George Curtis (born 1939) + John Sillett, joint Coventry City authority.
-- Matches 3150 and 3187: Doug Livermore + Ray Clemence, joint Tottenham Hotspur authority during 1992-93.
-- Matches 3177 and 3179: Alan Curbishley + Steve Gritt, joint Charlton Athletic authority.
-- Match 3326: Jimmy Quinn + Mick Gooding, joint Reading authority.
-- Match 3450: David Pleat + Chris Hughton, joint Tottenham Hotspur caretaker authority.
+## Representative committee case
 
-## Short-tenure / transition audit — confirmed cases
+- Match 240 — Manchester City v Leeds, 12 Dec 1925: **Manchester City selection committee**, with Albert Alexander represented as lead person metadata. The fixture falls within the committee-led first-team period following David Ashworth's departure. Raw source `Albert Alexander` remains preserved.
 
-The following assignments have survived forensic review and should not be casually rewritten:
+## Structurally proven joint/shared authority
 
-- Les Gore — Leyton Orient, 7 Sep and 14 Sep 1960: acting/caretaker authority confirmed.
-- Billy Lane — Brighton & Hove Albion, 24 Sep 1960 and 10 Feb 1961: permanent manager confirmed.
-- Norman Smith — Newcastle United, 27 Jan and 28 Apr 1962: temporary/interim authority confirmed.
-- Johnny Hart — Manchester City, 31 Mar 1973: assignment consistent with Manchester City managerial chronology.
-- Ronnie/Ron Fenton — Notts County, 3 Jan 1976: manager assignment confirmed by contemporary-season match evidence.
-- Colin Murphy — Derby County, 12 Feb 1977: Derby's own history confirms he first took temporary control and was appointed permanently in February 1977.
-- Brian Green — Rochdale, 31 Aug 1977: managerial tenure runs to 1 Sep 1977, so the fixture falls within his authority.
-- George Eastham — Stoke City, 12 Apr 1977: manager from March 1977; assignment retained.
-- Bobby Roberts — Colchester United, 26 Oct 1977: Colchester manager 1975–82; assignment retained.
-- John Wile — West Bromwich Albion, 31 Dec 1977: caretaker authority confirmed.
-- Brian Garvey — Wolves, 18 Nov 1978: temporary/caretaker authority confirmed after Sammy Chung's departure and before John Barnwell.
-- David Pleat — Luton Town, 13 Dec 1978: appointment in 1978 confirmed; assignment retained.
-- Billy Horner — Hartlepool United, 18 Jan 1979: club history supports his long first spell; assignment retained.
-- Alan Mullery — Brighton & Hove Albion, 13 Oct 1979: club history confirms he was in charge; assignment retained.
-- Ernie Walley — Crystal Palace, 25 Oct 1980: caretaker authority confirmed.
-- Ken Craggs — Charlton Athletic, 6 Nov 1982: fixture falls before his 22 Nov 1982 departure; assignment confirmed.
-- Frank Casper — Burnley, 9 Apr 1983: caretaker manager Jan–Jun 1983; fixture assignment confirmed.
-- Jimmy Goodfellow — Cardiff City, 12 Sep 1984: sole manager by this fixture. Earlier joint-caretaker period with Jimmy Mullen ended in April 1984, so this is not a hidden joint case.
-- Peter Grotier — Grimsby Town, 19 Oct 1985: Grimsby club history identifies him as caretaker manager in 1985.
-- Steve Smith — Huddersfield Town, 3 Jan 1987: caretaker authority confirmed; became permanent manager on 13 Jan 1987.
-- Steve Smith — Huddersfield Town, 15 Sep 1987: permanent-manager authority confirmed.
-- Malcolm Crosby — Oxford United, 3 Jan 1998: temporary/caretaker authority confirmed after Denis Smith's departure.
+The relational layer contains 15 joint/shared assignments, including:
 
-## Newly discovered hidden joint authority
+- Birmingham City — Arthur Turner + Pat Beasley (Matches 1346, 1367)
+- Coventry City — George Curtis + John Sillett (Match 2870)
+- Tottenham Hotspur — Doug Livermore + Ray Clemence (Matches 3150, 3187)
+- Charlton Athletic — Alan Curbishley + Steve Gritt (Matches 3177, 3179)
+- Reading — Jimmy Quinn + Mick Gooding (Match 3326)
+- Tottenham Hotspur — David Pleat + Chris Hughton (Match 3450)
+- Middlesbrough — Terry Venables + Bryan Robson (Match 3577)
+- Gillingham — Iffy Onuora + Mick Docherty (Match 3909)
+- Millwall — Richard Shaw + Colin West (Match 3915)
+- Leicester City — Mike Stowell + Jon Rudkin (Match 4140)
+- Bristol City — John Pemberton + Wade Elliott (Match 4355)
+- Rotherham United — Wayne Carlisle + Scott Brown + Dan Green (Match 4724)
 
-### Tottenham Hotspur 1992-93 — Doug Livermore + Ray Clemence
+## Material canonical corrections discovered during audit
 
-The legacy source stored only `Doug Livermore` for both Leeds fixtures. Tottenham historical material and independent contemporary-era records support a shared first-team/co-manager arrangement between Doug Livermore and Ray Clemence from May 1992 to June 1993.
+Raw provenance remains unchanged in every case.
 
-Affected Leeds fixtures:
+- Billy `Dougal` → canonical **Billy Dougall**, Burnley, Match 1345.
+- John Deehan → **Gary Megson**, Norwich City, Match 3293.
+- David Hodgson → **Jim Platt**, Darlington, Matches 3358 and 3360.
+- Graham Taylor → **Martin O'Neill**, Leicester City, Match 3519.
+- Dennis Wise → **Colin Lee**, Millwall, Matches 3796 and 3818.
 
-- Match 3150 — 25 Aug 1992
-- Match 3187 — 20 Feb 1993
+Hidden shared-authority corrections were also made where a singular raw source concealed genuine joint control.
 
-Gold correction applied live:
+## Gold boundary
 
-- Raw `Doug Livermore` provenance preserved.
-- Authority changed from individual to joint.
-- Doug Livermore remains linked.
-- Ray Clemence added as a second stable person identity and linked to both assignments.
-- Both person links carry joint-role metadata.
+Fixture-level opposition managerial authority is the Gold scope. The following are explicitly Phase 2 enrichment and do not hold fixture-level Gold hostage:
 
-## Remaining work before Gold sign-off
+- exhaustive appointment/departure dates
+- complete `opposition_manager_spells`
+- complete `opposition_manager_role_periods`
+- exhaustive caretaker/interim/permanent role labels
+- complete biographical metadata and multi-nationality enrichment
 
-1. Continue chronological rare-manager and transition-case audit through the remaining 1990s, 2000s and European opposition population.
-2. Continue systematic hidden joint/co-manager/caretaker detection.
-3. Populate `opposition_manager_spells` and `opposition_manager_role_periods` only where defensible evidence exists; do not manufacture exact dates.
-4. Add multi-nationality person records where supported.
-5. Reconcile all 4,856 relational assignments against source provenance and canonical match columns after every correction batch.
-6. Run final structural, provenance, duplicate, orphan, and fixture-count validation.
-7. Only then propose Opposition Managers Gold sign-off for user verification.
+No exact dates should be manufactured for those enrichments.
 
-## Repository safety
+## Repository state
 
-All Opposition Managers work is isolated to `lufcdata/LUFC-Data-V2` and branch `opposition-managers-gold-v1`. No other football repository is in scope.
+Opposition Managers work is isolated to `lufcdata/LUFC-Data-V2`, branch `opposition-managers-gold-v1`.
+
+The branch contains the relational schema, validation query, forensic corrections, hidden shared-authority corrections, identity corrections, and high-risk validation migrations. Live corrections that originally occurred through direct Supabase DML have been mirrored with idempotent repository migrations where they materially change canonical identity or relational authority.
+
+## Sign-off state
+
+All 4,856 fixtures reconcile structurally and canonically with zero current integrity mismatches. The representative user-verification set has been completed for ordinary, corrected-identity, joint-caretaker and historical edge cases; the committee case has been independently validated.
+
+**Opposition Managers is ready for final user Gold-lock approval.**
