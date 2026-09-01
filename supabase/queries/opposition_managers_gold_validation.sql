@@ -28,11 +28,11 @@ group by ma.match_id
 having count(map.managerial_person_id) < 2
 order by ma.match_id;
 
--- 4. Provenance must reconcile exactly with matches.opposition_manager_raw.
-select ma.match_id, ma.source_raw, m.opposition_manager_raw
+-- 4. Raw provenance must reconcile exactly with matches.opposition_manager_raw.
+select ma.match_id, ma.raw_source, m.opposition_manager_raw
 from public.managerial_assignments ma
 join public.matches m using (match_id)
-where ma.source_raw is distinct from m.opposition_manager_raw
+where ma.raw_source is distinct from m.opposition_manager_raw
 order by ma.match_id;
 
 -- 5. Authority classification must reconcile with canonical match classification.
@@ -58,11 +58,18 @@ from public.managerial_assignments
 group by authority_type
 order by authority_type;
 
--- 8. Audit queue: provisional assignments, oldest first.
+-- 8. Forensic audit queue: anything not yet explicitly validated.
 select m.match_id, m.match_date, c.display_name as opponent,
-       ma.authority_type, ma.canonical_display, ma.audit_status, ma.notes
+       ma.authority_type, ma.canonical_source_name,
+       ma.assignment_certainty, ma.provenance_status, ma.provenance_note
 from public.managerial_assignments ma
 join public.matches m on m.match_id = ma.match_id
 join public.clubs c on c.club_id = m.opponent_id
-where ma.audit_status <> 'gold'
+where ma.provenance_status is distinct from 'forensically_validated'
 order by m.match_date, m.match_id;
+
+-- 9. Count explicitly forensically validated fixture assignments.
+select provenance_status, count(*)
+from public.managerial_assignments
+group by provenance_status
+order by provenance_status;
