@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import spriteUrl from './assets/club-logos-sprite.webp';
 
 type ClubCrestProps = {
   crestUrl: string | null;
@@ -24,7 +25,7 @@ export default function ClubCrest({ crestUrl, name }: ClubCrestProps) {
       role="img"
       aria-label={`${name} crest`}
       style={{
-        backgroundImage: "url('/club-logos-sprite.webp')",
+        backgroundImage: `url(${spriteUrl})`,
         backgroundSize: '286px 286px',
         backgroundPosition: `${-col * 22}px ${-row * 22}px`,
       }}
