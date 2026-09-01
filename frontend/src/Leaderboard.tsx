@@ -1,29 +1,181 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ArrowDown, ArrowUp, ChevronsUpDown, Download, Filter, Search, SlidersHorizontal, Trophy } from 'lucide-react';
+import { ArrowDown, ArrowUp, ChevronsUpDown } from 'lucide-react';
 import { supabase } from './supabase';
 
-type Opponent = { club_id:number; opponent:string; crest_url:string|null; played:number; won:number; drawn:number; lost:number; goals_for:number; goals_against:number; goal_diff:number; win_pct:number|string; last5:string; last_meeting:string; };
-type SortKey='played'|'won'|'drawn'|'lost'|'goals_for'|'goals_against'|'goal_diff'|'win_pct';
-type SortDir='asc'|'desc';
-const initials=(name:string)=>{const w=name.split(/\s+/).filter(Boolean);return (w.length===1?w[0].slice(0,3):w.slice(0,3).map(x=>x[0]).join('')).toUpperCase()};
-function SortIcon({active,dir}:{active:boolean;dir:SortDir}){if(!active)return <ChevronsUpDown size={12} className="col-sort-idle"/>;return dir==='desc'?<ArrowDown size={12}/>:<ArrowUp size={12}/>}
-function FormBadge({result}:{result:'W'|'D'|'L'}){return <span className={`form-pill form-${result.toLowerCase()}`}>{result}</span>}
+type Opponent = {
+  club_id: number;
+  opponent: string;
+  crest_url: string | null;
+  played: number;
+  won: number;
+  drawn: number;
+  lost: number;
+  goals_for: number;
+  goals_against: number;
+  goal_diff: number;
+  win_pct: number | string;
+  last5: string;
+  last_meeting: string;
+};
 
-export default function Leaderboard(){
- const [teams,setTeams]=useState<Opponent[]>([]),[loading,setLoading]=useState(true),[error,setError]=useState<string|null>(null),[query,setQuery]=useState('');
- const [sortKey,setSortKey]=useState<SortKey>('played'),[sortDir,setSortDir]=useState<SortDir>('desc');
- useEffect(()=>{supabase.from('opponent_leaderboard').select('*').order('played',{ascending:false}).then(({data,error})=>{if(error)setError(error.message);else setTeams((data??[]) as Opponent[]);setLoading(false)})},[]);
- const sorted=useMemo(()=>{const q=query.toLowerCase();return [...teams.filter(t=>t.opponent.toLowerCase().includes(q))].sort((a,b)=>{const d=Number(a[sortKey])-Number(b[sortKey]);return sortDir==='asc'?d:-d})},[teams,query,sortKey,sortDir]);
- const max=useMemo(()=>({gf:Math.max(1,...teams.map(t=>t.goals_for)),gd:Math.max(1,...teams.map(t=>Math.abs(t.goal_diff)))}),[teams]);
- function toggleSort(k:SortKey){if(k===sortKey)setSortDir(d=>d==='asc'?'desc':'asc');else{setSortKey(k);setSortDir('desc')}}
- const topPlayed=[...teams].sort((a,b)=>b.played-a.played).slice(0,3),topWins=[...teams].sort((a,b)=>b.won-a.won).slice(0,2);
- const totalMatches=teams.reduce((s,t)=>s+t.played,0),totalWins=teams.reduce((s,t)=>s+t.won,0),totalGoals=teams.reduce((s,t)=>s+t.goals_for,0);
- const th=(label:string,k:SortKey)=><button onClick={()=>toggleSort(k)} className={`col-sort ${sortKey===k?'active':''}`}>{label}<SortIcon active={sortKey===k} dir={sortDir}/></button>;
- return <div className="leaderboard-grid"><section className="lb-main">
-  <div className="lb-toolbar"><div className="lb-search"><Search size={14}/><input placeholder="Search opponents" value={query} onChange={e=>setQuery(e.target.value)}/></div><div className="lb-toolbar-right"><button className="quiet-button"><Filter size={14}/> Filters</button><button className="quiet-button"><Download size={14}/> Export</button><button className="primary-button"><SlidersHorizontal size={14}/> Adjust metrics</button></div></div>
-  <div className="card lb-table-card"><div className="lb-table-header"><div className="lb-title-group"><span className="section-kicker">Team comparison</span><h2>League leaderboard</h2><p>All-time Leeds United record against every competitive opponent</p></div><div className="lb-table-meta"><span><i className="legend-dot orange-dot"/> Most played</span><span><i className="legend-dot dark-dot"/> Historical opponent</span></div></div>
-  {loading?<div className="lb-loading">Loading opponents from Supabase…</div>:error?<div className="lb-loading">Unable to load: {error}</div>:<div className="lb-table-wrap"><table className="lb-table"><thead><tr><th className="col-rank">#</th><th className="col-team">Opponent</th><th className="col-stat">{th('P','played')}</th><th className="col-stat">{th('W','won')}</th><th className="col-stat">{th('D','drawn')}</th><th className="col-stat">{th('L','lost')}</th><th className="col-metric">{th('GF','goals_for')}</th><th className="col-metric">{th('GA','goals_against')}</th><th className="col-metric">{th('GD','goal_diff')}</th><th className="col-metric">{th('Win %','win_pct')}</th><th className="col-form">Last 5</th></tr></thead><tbody>{sorted.map((t,i)=><tr key={t.club_id} className={i===0&&sortKey==='played'&&sortDir==='desc'?'row-top':''}><td className="col-rank"><span className={`rank-badge ${i===0?'rank-top':i<3?'rank-podium':''}`}>{i+1}</span></td><td className="col-team"><div className="team-cell"><span className="club-badge opponent-badge">{t.crest_url?<img src={t.crest_url} alt=""/>:initials(t.opponent)}</span><span className="team-name">{t.opponent}</span></div></td><td className="col-stat">{t.played}</td><td className="col-stat">{t.won}</td><td className="col-stat">{t.drawn}</td><td className="col-stat">{t.lost}</td><td className="col-metric"><div className="metric-cell"><span className="metric-value">{t.goals_for}</span><span className="metric-track"><span className="metric-fill orange-fill" style={{width:`${t.goals_for/max.gf*100}%`}}/></span></div></td><td className="col-metric"><div className="metric-cell"><span className="metric-value">{t.goals_against}</span><span className="metric-track"><span className="metric-fill dark-fill" style={{width:`${t.goals_against/max.gf*100}%`}}/></span></div></td><td className="col-metric"><div className="metric-cell"><span className="metric-value">{t.goal_diff>0?'+':''}{t.goal_diff}</span><span className="metric-track"><span className="metric-fill soft-fill" style={{width:`${Math.abs(t.goal_diff)/max.gd*100}%`}}/></span></div></td><td className="col-metric"><div className="metric-cell"><span className="metric-value">{Number(t.win_pct).toFixed(1)}%</span><span className="metric-track"><span className="metric-fill orange-fill" style={{width:`${Number(t.win_pct)}%`}}/></span></div></td><td className="col-form"><div className="form-row">{t.last5.split('').map((r,j)=><FormBadge key={j} result={r as 'W'|'D'|'L'}/>)}</div></td></tr>)}</tbody></table></div>}</div>
- </section><aside className="lb-side"><div className="orange-metrics"><div className="orange-top"><span className="section-kicker light">Leeds opposition archive</span><Trophy size={16} className="light-icon"/></div><div className="value-row"><strong>{teams.length}<span> clubs</span></strong></div><p>Competitive opponents since 1920</p><div className="orange-divider"/><div className="orange-grid"><div><span>Matches</span><strong>{totalMatches.toLocaleString()}</strong></div><div><span>Leeds wins</span><strong>{totalWins.toLocaleString()}</strong></div><div><span>Leeds goals</span><strong>{totalGoals.toLocaleString()}</strong></div><div><span>Most faced</span><strong>{topPlayed[0]?.played??'—'}</strong></div></div></div>
- <div className="card lb-podium-card"><div className="card-header"><div><span className="section-kicker">Most played</span><h3>Historic rivals</h3></div></div><div className="podium-list">{topPlayed.map((t,i)=><div className="podium-row" key={t.club_id}><span className={`podium-rank rank-${i+1}`}>{i+1}</span><span className="club-badge opponent-badge">{initials(t.opponent)}</span><div className="podium-info"><strong>{t.opponent}</strong><span>{t.won} wins · {t.drawn} draws</span></div><span className="podium-press">{t.played}<small> P</small></span></div>)}</div></div>
- <div className="card lb-comparison-card"><div className="card-header"><div><span className="section-kicker">Leeds wins</span><h3>Highest totals</h3></div></div>{topWins.map((t,i)=><div key={t.club_id}><div className="team-row"><div className="team-label"><span className="club-badge opponent-badge">{initials(t.opponent)}</span><span>{t.opponent}</span></div><strong>{t.won} <small>wins</small></strong></div><div className="comparison-track"><span className={`track-fill ${i===0?'orange-fill':'dark-fill'}`} style={{width:`${t.won/(topWins[0]?.won||1)*100}%`}}/></div></div>)}</div></aside></div>;
+type SortKey = 'played' | 'won' | 'drawn' | 'lost' | 'goals_for' | 'goals_against' | 'goal_diff' | 'win_pct';
+type SortDir = 'asc' | 'desc';
+
+const initials = (name: string) => {
+  const words = name.split(/\s+/).filter(Boolean);
+  return (words.length === 1 ? words[0].slice(0, 3) : words.slice(0, 3).map((word) => word[0]).join('')).toUpperCase();
+};
+
+function SortIcon({ active, dir }: { active: boolean; dir: SortDir }) {
+  if (!active) return <ChevronsUpDown size={12} className="col-sort-idle" />;
+  return dir === 'desc' ? <ArrowDown size={12} /> : <ArrowUp size={12} />;
+}
+
+function FormBadge({ result }: { result: 'W' | 'D' | 'L' }) {
+  return <span className={`form-pill form-${result.toLowerCase()}`}>{result}</span>;
+}
+
+export default function Leaderboard() {
+  const [teams, setTeams] = useState<Opponent[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [sortKey, setSortKey] = useState<SortKey>('played');
+  const [sortDir, setSortDir] = useState<SortDir>('desc');
+
+  useEffect(() => {
+    supabase
+      .from('opponent_leaderboard')
+      .select('*')
+      .order('played', { ascending: false })
+      .then(({ data, error }) => {
+        if (error) setError(error.message);
+        else setTeams((data ?? []) as Opponent[]);
+        setLoading(false);
+      });
+  }, []);
+
+  const sorted = useMemo(
+    () => [...teams].sort((a, b) => {
+      const delta = Number(a[sortKey]) - Number(b[sortKey]);
+      return sortDir === 'asc' ? delta : -delta;
+    }),
+    [teams, sortKey, sortDir],
+  );
+
+  const max = useMemo(
+    () => ({
+      gf: Math.max(1, ...teams.map((team) => team.goals_for)),
+      ga: Math.max(1, ...teams.map((team) => team.goals_against)),
+      gd: Math.max(1, ...teams.map((team) => Math.abs(team.goal_diff))),
+    }),
+    [teams],
+  );
+
+  function toggleSort(key: SortKey) {
+    if (key === sortKey) setSortDir((dir) => (dir === 'asc' ? 'desc' : 'asc'));
+    else {
+      setSortKey(key);
+      setSortDir('desc');
+    }
+  }
+
+  const sortableHeading = (label: string, key: SortKey) => (
+    <button onClick={() => toggleSort(key)} className={`col-sort ${sortKey === key ? 'active' : ''}`}>
+      {label} <SortIcon active={sortKey === key} dir={sortDir} />
+    </button>
+  );
+
+  return (
+    <div className="card lb-table-card">
+      <div className="lb-table-header">
+        <div className="lb-title-group">
+          <span className="section-kicker">Team comparison</span>
+          <h2>League leaderboard</h2>
+          <p>All-time Leeds United record against every competitive opponent</p>
+        </div>
+        <div className="lb-table-meta">
+          <span><i className="legend-dot orange-dot" /> Most played</span>
+          <span><i className="legend-dot dark-dot" /> Historical opponent</span>
+        </div>
+      </div>
+
+      {loading ? (
+        <div className="lb-loading">Loading opponents from Supabase…</div>
+      ) : error ? (
+        <div className="lb-loading">Unable to load: {error}</div>
+      ) : (
+        <div className="lb-table-wrap">
+          <table className="lb-table">
+            <thead>
+              <tr>
+                <th className="col-rank">#</th>
+                <th className="col-team">Opponent</th>
+                <th className="col-stat">{sortableHeading('P', 'played')}</th>
+                <th className="col-stat">{sortableHeading('W', 'won')}</th>
+                <th className="col-stat">{sortableHeading('D', 'drawn')}</th>
+                <th className="col-stat">{sortableHeading('L', 'lost')}</th>
+                <th className="col-metric">{sortableHeading('GF', 'goals_for')}</th>
+                <th className="col-metric">{sortableHeading('GA', 'goals_against')}</th>
+                <th className="col-metric">{sortableHeading('GD', 'goal_diff')}</th>
+                <th className="col-metric">{sortableHeading('Win %', 'win_pct')}</th>
+                <th className="col-form">Last 5</th>
+              </tr>
+            </thead>
+            <tbody>
+              {sorted.map((team, index) => (
+                <tr key={team.club_id} className={index === 0 && sortKey === 'played' && sortDir === 'desc' ? 'row-top' : ''}>
+                  <td className="col-rank">
+                    <span className={`rank-badge ${index === 0 ? 'rank-top' : index < 3 ? 'rank-podium' : ''}`}>{index + 1}</span>
+                  </td>
+                  <td className="col-team">
+                    <div className="team-cell">
+                      <span className="club-badge opponent-badge">
+                        {team.crest_url ? <img src={team.crest_url} alt="" /> : initials(team.opponent)}
+                      </span>
+                      <span className="team-name">{team.opponent}</span>
+                    </div>
+                  </td>
+                  <td className="col-stat">{team.played}</td>
+                  <td className="col-stat">{team.won}</td>
+                  <td className="col-stat">{team.drawn}</td>
+                  <td className="col-stat">{team.lost}</td>
+                  <td className="col-metric">
+                    <div className="metric-cell">
+                      <span className="metric-value">{team.goals_for}</span>
+                      <span className="metric-track"><span className="metric-fill orange-fill" style={{ width: `${team.goals_for / max.gf * 100}%` }} /></span>
+                    </div>
+                  </td>
+                  <td className="col-metric">
+                    <div className="metric-cell">
+                      <span className="metric-value">{team.goals_against}</span>
+                      <span className="metric-track"><span className="metric-fill dark-fill" style={{ width: `${team.goals_against / max.ga * 100}%` }} /></span>
+                    </div>
+                  </td>
+                  <td className="col-metric">
+                    <div className="metric-cell">
+                      <span className="metric-value">{team.goal_diff > 0 ? '+' : ''}{team.goal_diff}</span>
+                      <span className="metric-track"><span className="metric-fill soft-fill" style={{ width: `${Math.abs(team.goal_diff) / max.gd * 100}%` }} /></span>
+                    </div>
+                  </td>
+                  <td className="col-metric">
+                    <div className="metric-cell">
+                      <span className="metric-value">{Number(team.win_pct).toFixed(1)}%</span>
+                      <span className="metric-track"><span className="metric-fill orange-fill" style={{ width: `${Number(team.win_pct)}%` }} /></span>
+                    </div>
+                  </td>
+                  <td className="col-form">
+                    <div className="form-row">
+                      {team.last5.split('').map((result, resultIndex) => (
+                        <FormBadge key={resultIndex} result={result as 'W' | 'D' | 'L'} />
+                      ))}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
 }
