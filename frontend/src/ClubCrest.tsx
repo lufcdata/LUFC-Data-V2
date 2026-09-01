@@ -1,10 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
 
-let spriteDataUri: string | null = null;
+let spriteObjectUrl: string | null = null;
 let spritePromise: Promise<string> | null = null;
 
 function loadSprite() {
-  if (spriteDataUri) return Promise.resolve(spriteDataUri);
+  if (spriteObjectUrl) return Promise.resolve(spriteObjectUrl);
   if (!spritePromise) {
     spritePromise = fetch('/club-logos-sprite.b64')
       .then((response) => {
@@ -12,8 +12,11 @@ function loadSprite() {
         return response.text();
       })
       .then((base64) => {
-        spriteDataUri = `data:image/png;base64,${base64.trim()}`;
-        return spriteDataUri;
+        const binary = atob(base64.trim());
+        const bytes = new Uint8Array(binary.length);
+        for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
+        spriteObjectUrl = URL.createObjectURL(new Blob([bytes], { type: 'image/png' }));
+        return spriteObjectUrl;
       });
   }
   return spritePromise;
@@ -25,7 +28,7 @@ type ClubCrestProps = {
 };
 
 export default function ClubCrest({ crestUrl, name }: ClubCrestProps) {
-  const [sprite, setSprite] = useState(spriteDataUri);
+  const [sprite, setSprite] = useState(spriteObjectUrl);
   const slot = useMemo(() => {
     const match = crestUrl?.match(/#slot=(\d+)$/);
     return match ? Number(match[1]) : null;
