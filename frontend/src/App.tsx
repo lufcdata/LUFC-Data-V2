@@ -1,4 +1,4 @@
-import { Component, type ErrorInfo, type ReactNode } from 'react';
+import React, { Component, type ErrorInfo, type ReactNode } from 'react';
 import Leaderboard from './Leaderboard';
 
 class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
