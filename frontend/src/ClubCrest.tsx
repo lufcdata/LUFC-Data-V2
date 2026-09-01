@@ -6,7 +6,7 @@ let spritePromise: Promise<string> | null = null;
 function loadSprite() {
   if (spriteObjectUrl) return Promise.resolve(spriteObjectUrl);
   if (!spritePromise) {
-    spritePromise = fetch('/club-logos-sprite.b64')
+    spritePromise = fetch('/club-logos-sprite.webp.b64', { cache: 'force-cache' })
       .then((response) => {
         if (!response.ok) throw new Error(`Club crest sprite failed: ${response.status}`);
         return response.text();
@@ -15,7 +15,7 @@ function loadSprite() {
         const binary = atob(base64.trim());
         const bytes = new Uint8Array(binary.length);
         for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
-        spriteObjectUrl = URL.createObjectURL(new Blob([bytes], { type: 'image/png' }));
+        spriteObjectUrl = URL.createObjectURL(new Blob([bytes], { type: 'image/webp' }));
         return spriteObjectUrl;
       });
   }
@@ -36,7 +36,7 @@ export default function ClubCrest({ crestUrl, name }: ClubCrestProps) {
 
   useEffect(() => {
     if (slot === null || sprite) return;
-    loadSprite().then(setSprite).catch((error) => console.error(error));
+    loadSprite().then(setSprite).catch((error) => console.error('Club crest sprite error', error));
   }, [slot, sprite]);
 
   if (slot === null || !sprite) {
@@ -53,6 +53,7 @@ export default function ClubCrest({ crestUrl, name }: ClubCrestProps) {
       aria-label={`${name} crest`}
       style={{
         backgroundImage: `url(${sprite})`,
+        backgroundSize: '286px 286px',
         backgroundPosition: `${-col * 22}px ${-row * 22}px`,
       }}
     />
