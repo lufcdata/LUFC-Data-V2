@@ -23,6 +23,7 @@ export default function Leaderboard(){
  useEffect(()=>{if(!supabase){setLoading(false);return;} setLoading(true);setError(null); supabase.rpc('filtered_opponent_leaderboard',{p_filter:filter,p_venue:venue}).then(({data,error})=>{if(error)setError(error.message);else setTeams((data??[]) as Opponent[]);setLoading(false);}).catch((err:unknown)=>{setError(err instanceof Error?err.message:String(err));setLoading(false);});},[filter,venue]);
  useEffect(()=>{if(filter!=='Premier League'&&sortKey==='points'){setSortKey('played');setSortDir('desc');}},[filter,sortKey]);
  const visible=useMemo(()=>{const q=search.trim().toLowerCase();return teams.filter(team=>(!fivePlus||Number(team.played)>=5)&&(!q||team.opponent.toLowerCase().includes(q)));},[teams,fivePlus,search]);
+ const selectedMatchCount=useMemo(()=>visible.reduce((total,team)=>total+Number(team.played),0),[visible]);
  const sorted=useMemo(()=>[...visible].sort((a,b)=>{
    if(sortKey.startsWith('last_')){
      const av=a[sortKey] as string|null; const bv=b[sortKey] as string|null;
@@ -47,7 +48,7 @@ export default function Leaderboard(){
  const isPremierLeague=filter==='Premier League';
  return <>
  <div className="card lb-table-card">
-  <div className="lb-table-header"><div className="lb-title-group"><span className="section-kicker">Team comparison</span><h2>Opponents Faced</h2><p>All-time Leeds United record against every competitive opponent</p></div></div>
+  <div className="lb-table-header"><div className="lb-title-group"><span className="section-kicker">Team comparison</span><h2>Opponents Faced</h2><p>All-time Leeds United record against every competitive opponent</p></div><div className="section-kicker lb-match-count">{loading?'…':selectedMatchCount.toLocaleString('en-GB')} Matches Selected</div></div>
   <div className="lb-filterbar">
    <div className="lb-filter-section"><span className="lb-filter-label">Competition</span><div className="lb-filter-pills">{filters.map(item=><button key={item} className={`lb-filter-pill ${filter===item?'active':''}`} onClick={()=>setFilter(item)} aria-pressed={filter===item}>{item}</button>)}</div></div>
    <div className="lb-filter-section lb-venue-section"><span className="lb-filter-label">Venue</span><div className="lb-filter-pills">{venues.map(item=><button key={item} className={`lb-filter-pill ${venue===item?'active':''}`} onClick={()=>setVenue(item)} aria-pressed={venue===item}>{item}</button>)}</div></div>
