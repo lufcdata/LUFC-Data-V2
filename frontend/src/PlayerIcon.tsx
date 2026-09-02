@@ -1,0 +1,2 @@
+import React,{useState}from'react';
+export default function PlayerIcon({name,src}:{name:string;src:string|null}){const[failed,setFailed]=useState(false);const initials=name.split(/\s+/).filter(Boolean).slice(0,2).map(x=>x[0]).join('').toUpperCase();return src&&!failed?<img className="player-icon" src={src} alt="" onError={()=>setFailed(true)}/>:<span className="player-avatar" aria-hidden="true">{initials||'LU'}</span>}
