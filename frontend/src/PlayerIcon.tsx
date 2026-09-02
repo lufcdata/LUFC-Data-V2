@@ -1,2 +1,2 @@
 import React,{useEffect,useState}from'react';
-export default function PlayerIcon({name,src}:{name:string;src:string|null}){const[failed,setFailed]=useState(false);const imageSrc=src??`/playericons/${encodeURIComponent(`${name} Icon.png`)}`;useEffect(()=>setFailed(false),[imageSrc]);if(failed)return <span className="player-icon-space" aria-hidden="true"/>;return <img className="player-icon" src={imageSrc} alt={name} title={name} onError={()=>setFailed(true)}/>}
+export default function PlayerIcon({name,src}:{name:string;src:string|null}){const[failed,setFailed]=useState(false);useEffect(()=>setFailed(false),[src]);if(!src||failed)return null;return <img className="player-icon" src={src} alt={name} title={name} onError={()=>setFailed(true)}/>}
