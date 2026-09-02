@@ -1,4 +1,5 @@
 import React from'react';
+import'./PlayerManagerWidget.css';
 
 type ManagerRow={name:string;src:string;apps:number;won:number;winPct:number};
 const managers:ManagerRow[]=[
