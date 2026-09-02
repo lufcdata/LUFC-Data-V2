@@ -37,5 +37,6 @@ export default function Leaderboard(){
    <td className="col-year metric-value">{year(team.last_meeting)}</td><td className="col-year metric-value">{year(team.last_won)}</td><td className="col-year metric-value">{year(team.last_lost)}</td>
    <td className="col-form"><div className="form-row">{(team.last5??'').split('').filter((r):r is 'W'|'D'|'L'=>r==='W'||r==='D'||r==='L').map((result,resultIndex)=><FormBadge key={resultIndex} result={result}/>)}</div></td></tr>)}
   </tbody></table>{sorted.length===0&&<div className="lb-empty">No opponents match these filters.</div>}</div>}
+  <div className="lb-legend" aria-label="Table abbreviations"><div className="lb-legend-items"><span><strong>P</strong> Played</span><span><strong>W</strong> Won</span><span><strong>D</strong> Drawn</span><span><strong>L</strong> Lost</span><span><strong>GF</strong> Goals For</span><span><strong>GA</strong> Goals Against</span><span><strong>GD</strong> Goal Difference</span><span><strong>GPG</strong> Goals Per Game</span><span><strong>CS</strong> Clean Sheets</span></div><div className="lb-legend-last5"><strong>Last 5</strong> matches played by most recent from right to left</div></div>
  </div>;
 }
