@@ -14,3 +14,12 @@ jobs:
           python-version: '3.12'
       - run: python -m pip install pytest
       - run: pytest -q
+      - name: Audit player icon mapping
+        env:
+          SUPABASE_PUBLISHABLE_KEY: sb_publishable_xlpwdDit8RCbCh1Yf-1XXQ_kYxAG_No
+        run: python scripts/audit_player_icons.py
+      - name: Upload player icon audit
+        uses: actions/upload-artifact@v4
+        with:
+          name: player-icon-audit
+          path: player_icon_audit.json
