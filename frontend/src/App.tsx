@@ -1,4 +1,5 @@
-import React, { Component, type ErrorInfo, type ReactNode } from 'react';
+import React, { Component, useState, type ErrorInfo, type ReactNode } from 'react';
+import { Moon, Sun } from 'lucide-react';
 import Leaderboard from './Leaderboard';
 
 class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
@@ -28,9 +29,23 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | 
 }
 
 function App() {
+  const [theme, setTheme] = useState<'light' | 'dark'>('light');
+  const isDark = theme === 'dark';
+
   return (
     <ErrorBoundary>
-      <main className="leaderboard-isolate">
+      <main className={`leaderboard-isolate ${isDark ? 'theme-dark' : 'theme-light'}`}>
+        <button
+          type="button"
+          className="theme-toggle"
+          onClick={() => setTheme(current => current === 'light' ? 'dark' : 'light')}
+          aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+          aria-pressed={isDark}
+          title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+        >
+          <Sun size={15} strokeWidth={1.6} className={`theme-icon ${!isDark ? 'active' : ''}`} />
+          <Moon size={15} strokeWidth={1.25} className={`theme-icon ${isDark ? 'active' : ''}`} />
+        </button>
         <Leaderboard />
       </main>
     </ErrorBoundary>
