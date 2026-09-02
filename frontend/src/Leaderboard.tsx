@@ -18,7 +18,22 @@ export default function Leaderboard(){
  const [fivePlus,setFivePlus]=useState(false); const [search,setSearch]=useState('');
  useEffect(()=>{if(!supabase){setLoading(false);return;} setLoading(true);setError(null); supabase.rpc('filtered_opponent_leaderboard',{p_filter:filter}).then(({data,error})=>{if(error)setError(error.message);else setTeams((data??[]) as Opponent[]);setLoading(false);}).catch((err:unknown)=>{setError(err instanceof Error?err.message:String(err));setLoading(false);});},[filter]);
  const visible=useMemo(()=>{const q=search.trim().toLowerCase();return teams.filter(team=>(!fivePlus||Number(team.played)>=5)&&(!q||team.opponent.toLowerCase().includes(q)));},[teams,fivePlus,search]);
- const sorted=useMemo(()=>[...visible].sort((a,b)=>{const av=a[sortKey],bv=b[sortKey]; let delta:number; if(sortKey.startsWith('last_')){const aTime=av?new Date(String(av)).getTime():0;const bTime=bv?new Date(String(bv)).getTime():0;delta=aTime-bTime;}else{delta=Number(av)-Number(bv);} return sortDir==='asc'?delta:-delta;}),[visible,sortKey,sortDir]);
+ const sorted=useMemo(()=>[...visible].sort((a,b)=>{
+   if(sortKey.startsWith('last_')){
+     const av=a[sortKey] as string|null; const bv=b[sortKey] as string|null;
+     const aMissing=!av || av==='-'; const bMissing=!bv || bv==='-';
+     if(aMissing && bMissing) return a.opponent.localeCompare(b.opponent);
+     if(aMissing) return sortDir==='asc' ? -1 : 1;
+     if(bMissing) return sortDir==='asc' ? 1 : -1;
+     const aTime=Date.parse(`${av}T00:00:00`); const bTime=Date.parse(`${bv}T00:00:00`);
+     const delta=aTime-bTime;
+     if(delta===0) return a.opponent.localeCompare(b.opponent);
+     return sortDir==='asc' ? delta : -delta;
+   }
+   const delta=Number(a[sortKey])-Number(b[sortKey]);
+   if(delta===0) return a.opponent.localeCompare(b.opponent);
+   return sortDir==='asc'?delta:-delta;
+ }),[visible,sortKey,sortDir]);
  const max=useMemo(()=>({gf:Math.max(1,...visible.map(t=>Number(t.goals_for))),ga:Math.max(1,...visible.map(t=>Number(t.goals_against))),gd:Math.max(1,...visible.map(t=>Math.abs(Number(t.goal_diff)))),gpg:Math.max(1,...visible.map(t=>Number(t.goals_per_game))),cs:Math.max(1,...visible.map(t=>Number(t.clean_sheets)))}),[visible]);
  function toggleSort(key:SortKey){if(key===sortKey)setSortDir(d=>d==='asc'?'desc':'asc');else{setSortKey(key);setSortDir('desc');}}
  const sortableHeading=(label:string,key:SortKey)=><button onClick={()=>toggleSort(key)} className={`col-sort ${sortKey===key?'active':''}`}>{label} <SortIcon active={sortKey===key} dir={sortDir}/></button>;
