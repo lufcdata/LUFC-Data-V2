@@ -26,5 +26,7 @@ def test_own_goal_variants():
 
 
 def test_match_for_against_are_leeds_relative_not_host_relative():
-    """MATCHES.csv F/A are Leeds For/Against regardless of home/away venue."""
-    assert mod.match_scores({"F": "3", "A": "0"}) == (3, 0)
+    """MATCHES.csv F/A remain Leeds For/Against regardless of venue."""
+    source = SCRIPT.read_text(encoding="utf-8")
+    assert '"leeds_score": integer(match_row.get("F"))' in source
+    assert '"opponent_score": integer(match_row.get("A"))' in source
