@@ -14,7 +14,7 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | 
 
 type Page='matches'|'players'|'managers'|'opponents';
 function App() {
- const [theme,setTheme]=useState<'light'|'dark'>('light');
+ const [theme,setTheme]=useState<'light'|'dark'>('dark');
  const [page,setPage]=useState<Page>('opponents');
  const isDark=theme==='dark';
  const content=page==='matches'?<Matches/>:page==='players'?<Players/>:page==='managers'?<Managers/>:<Leaderboard/>;
