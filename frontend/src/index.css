@@ -14,8 +14,8 @@ button { font:inherit; cursor:pointer; }
 .legend-dot { width:6px; height:6px; border-radius:50%; display:inline-block; }
 .orange-dot { background:var(--accent-yellow); }
 .dark-dot { background:var(--accent-blue); }
-.club-badge { width:22px; height:22px; display:grid; place-items:center; border-radius:7px; font-size:9px; font-weight:800; color:white; }
-.club-crest { width:22px; height:22px; flex:0 0 22px; display:block; object-fit:contain; }
+.club-badge { width:25px; height:25px; display:grid; place-items:center; border-radius:7px; font-size:9px; font-weight:800; color:white; }
+.club-crest { width:25px; height:25px; flex:0 0 25px; display:block; object-fit:contain; }
 .club-crest-missing { border-radius:5px; background:#f1f3f3; }
 .orange-fill { background:var(--accent-yellow); }
 .dark-fill { background:var(--accent-blue); }
@@ -35,13 +35,13 @@ button { font:inherit; cursor:pointer; }
 .lb-filter-pill.active { background:var(--accent-blue); border-color:var(--accent-blue); color:#fff; box-shadow:0 0 0 2px rgba(242,224,31,.45); }
 .lb-table-wrap { overflow-x:auto; margin:0 -22px; padding:0 22px; }
 .lb-table { width:100%; border-collapse:collapse; font-size:11px; }
-.lb-table thead th { text-align:left; padding:10px 8px; border-bottom:1px solid #eceeee; color:#9ba1a3; font-family:'DM Mono',monospace; font-size:9px; font-weight:500; text-transform:uppercase; letter-spacing:.06em; white-space:nowrap; }
+.lb-table thead th { text-align:left; padding:9px 8px; border-bottom:1px solid #eceeee; color:#9ba1a3; font-family:'DM Mono',monospace; font-size:9px; font-weight:500; text-transform:uppercase; letter-spacing:.06em; white-space:nowrap; }
 .lb-table thead th.col-stat,.lb-table thead th.col-metric,.lb-table thead th.col-form { text-align:center; }
 .col-sort { display:inline-flex; align-items:center; gap:4px; border:0; background:transparent; color:#9ba1a3; font:inherit; text-transform:inherit; letter-spacing:inherit; padding:0; cursor:pointer; transition:color .15s; }
 .col-sort:hover { color:#2a3033; }
 .col-sort.active { color:var(--accent-yellow); }
 .col-sort-idle { color:#c6cccd; }
-.lb-table tbody td { padding:13px 8px; border-bottom:1px solid #f1f2f2; vertical-align:middle; }
+.lb-table tbody td { padding:9px 8px; border-bottom:1px solid #f1f2f2; vertical-align:middle; }
 .lb-table tbody tr { transition:background .15s; }
 .lb-table tbody tr:hover { background:#fafbfb; }
 .lb-table tbody tr.row-top { background:#fffdf0; }
