@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import spriteUrl from './assets/club-logos-sprite.webp';
 
 type ClubCrestProps = {
@@ -7,10 +7,27 @@ type ClubCrestProps = {
 };
 
 export default function ClubCrest({ crestUrl, name }: ClubCrestProps) {
+  const [imageFailed, setImageFailed] = useState(false);
+
   const slot = useMemo(() => {
     const match = crestUrl?.match(/#slot=(\d+)$/);
     return match ? Number(match[1]) : null;
   }, [crestUrl]);
+
+  const directImageUrl = crestUrl && !crestUrl.includes('#slot=') ? crestUrl : null;
+
+  if (directImageUrl && !imageFailed) {
+    return (
+      <img
+        className="club-crest"
+        src={directImageUrl}
+        alt={`${name} crest`}
+        loading="lazy"
+        decoding="async"
+        onError={() => setImageFailed(true)}
+      />
+    );
+  }
 
   if (slot === null) {
     return <span className="club-crest club-crest-missing" aria-label={`${name} crest unavailable`} />;
