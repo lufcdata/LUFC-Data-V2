@@ -5,6 +5,7 @@ import Managers from './Managers';
 import Players from './Players';
 import Matches from './Matches';
 import PlayerPage from './PlayerPage';
+import PlayerManagerWidget from './PlayerManagerWidget';
 
 class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
   state = { error: null as Error | null };
@@ -18,7 +19,7 @@ function App() {
  const [theme,setTheme]=useState<'light'|'dark'>('dark');
  const [page,setPage]=useState<Page>('player-profile');
  const isDark=theme==='dark';
- const content=page==='matches'?<Matches/>:page==='players'?<Players/>:page==='player-profile'?<PlayerPage onBack={()=>setPage('players')}/>:page==='managers'?<Managers/>:<Leaderboard/>;
+ const content=page==='matches'?<Matches/>:page==='players'?<Players/>:page==='player-profile'?<><PlayerPage onBack={()=>setPage('players')}/><PlayerManagerWidget/></>:page==='managers'?<Managers/>:<Leaderboard/>;
  return <ErrorBoundary><main className={`leaderboard-isolate ${isDark?'theme-dark':'theme-light'}`}>
   <nav className="page-nav" aria-label="Database sections">
    <button className={page==='matches'?'active':''} onClick={()=>setPage('matches')}>Matches</button>
