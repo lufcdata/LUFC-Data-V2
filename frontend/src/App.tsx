@@ -1,55 +1,23 @@
 import React, { Component, useState, type ErrorInfo, type ReactNode } from 'react';
 import { Moon, Sun } from 'lucide-react';
 import Leaderboard from './Leaderboard';
+import Managers from './Managers';
 
 class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
   state = { error: null as Error | null };
-
-  static getDerivedStateFromError(error: Error) {
-    return { error };
-  }
-
-  componentDidCatch(error: Error, info: ErrorInfo) {
-    console.error('LUFC Data runtime error', error, info);
-  }
-
-  render() {
-    if (this.state.error) {
-      return (
-        <main className="leaderboard-isolate">
-          <div className="card lb-runtime-error">
-            <strong>LUFC Data could not render.</strong>
-            <span>{this.state.error.message}</span>
-          </div>
-        </main>
-      );
-    }
-    return this.props.children;
-  }
+  static getDerivedStateFromError(error: Error) { return { error }; }
+  componentDidCatch(error: Error, info: ErrorInfo) { console.error('LUFC Data runtime error', error, info); }
+  render() { if (this.state.error) return <main className="leaderboard-isolate"><div className="card lb-runtime-error"><strong>LUFC Data could not render.</strong><span>{this.state.error.message}</span></div></main>; return this.props.children; }
 }
 
 function App() {
-  const [theme, setTheme] = useState<'light' | 'dark'>('light');
-  const isDark = theme === 'dark';
-
-  return (
-    <ErrorBoundary>
-      <main className={`leaderboard-isolate ${isDark ? 'theme-dark' : 'theme-light'}`}>
-        <button
-          type="button"
-          className="theme-toggle"
-          onClick={() => setTheme(current => current === 'light' ? 'dark' : 'light')}
-          aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
-          aria-pressed={isDark}
-          title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
-        >
-          <Sun size={15} strokeWidth={1.6} className={`theme-icon ${!isDark ? 'active' : ''}`} />
-          <Moon size={15} strokeWidth={1.25} className={`theme-icon ${isDark ? 'active' : ''}`} />
-        </button>
-        <Leaderboard />
-      </main>
-    </ErrorBoundary>
-  );
+ const [theme,setTheme]=useState<'light'|'dark'>('light');
+ const [page,setPage]=useState<'opponents'|'managers'>('opponents');
+ const isDark=theme==='dark';
+ return <ErrorBoundary><main className={`leaderboard-isolate ${isDark?'theme-dark':'theme-light'}`}>
+  <nav className="page-nav" aria-label="Database sections"><button className={page==='opponents'?'active':''} onClick={()=>setPage('opponents')}>Opponents</button><button className={page==='managers'?'active':''} onClick={()=>setPage('managers')}>Managers</button></nav>
+  <button type="button" className="theme-toggle" onClick={()=>setTheme(c=>c==='light'?'dark':'light')} aria-label={isDark?'Switch to light mode':'Switch to dark mode'} aria-pressed={isDark} title={isDark?'Switch to light mode':'Switch to dark mode'}><Sun size={15} strokeWidth={1.6} className={`theme-icon ${!isDark?'active':''}`}/><Moon size={15} strokeWidth={1.25} className={`theme-icon ${isDark?'active':''}`}/></button>
+  {page==='opponents'?<Leaderboard/>:<Managers/>}
+ </main></ErrorBoundary>;
 }
-
 export default App;
