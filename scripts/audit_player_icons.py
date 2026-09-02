@@ -64,6 +64,9 @@ APPROVED_FILENAMES = {
     "Jimmy Allan": "Jimmy Allan Icon .png",
     "Lewie Coyle": "Lewie Coyle Icon .png",
     "Lubomir Michalik": "Lubomir Michalik Icon .png",
+    "Harold Williams": "Harold Wiliams Icon.png",
+    "Eric Kerfoot": "Erik Kerfoot Icon.png",
+    "Ron Mollatt": "Ron Molatt Icon.png",
 }
 
 
