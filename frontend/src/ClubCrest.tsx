@@ -1,5 +1,4 @@
-import React, { useMemo, useState } from 'react';
-import spriteUrl from './assets/club-logos-sprite.webp';
+import React, { useState } from 'react';
 
 type ClubCrestProps = {
   crestUrl: string | null;
@@ -8,44 +7,27 @@ type ClubCrestProps = {
 
 export default function ClubCrest({ crestUrl, name }: ClubCrestProps) {
   const [imageFailed, setImageFailed] = useState(false);
-
-  const slot = useMemo(() => {
-    const match = crestUrl?.match(/#slot=(\d+)$/);
-    return match ? Number(match[1]) : null;
-  }, [crestUrl]);
-
   const directImageUrl = crestUrl && !crestUrl.includes('#slot=') ? crestUrl : null;
 
-  if (directImageUrl && !imageFailed) {
+  if (!directImageUrl || imageFailed) {
     return (
-      <img
-        className="club-crest"
-        src={directImageUrl}
-        alt={`${name} crest`}
-        loading="lazy"
-        decoding="async"
-        onError={() => setImageFailed(true)}
+      <span
+        className="club-crest club-crest-missing"
+        role="img"
+        aria-label={`${name} crest unavailable`}
       />
     );
   }
 
-  if (slot === null) {
-    return <span className="club-crest club-crest-missing" aria-label={`${name} crest unavailable`} />;
-  }
-
-  const col = slot % 13;
-  const row = Math.floor(slot / 13);
-
   return (
-    <span
+    <img
       className="club-crest"
-      role="img"
-      aria-label={`${name} crest`}
-      style={{
-        backgroundImage: `url(${spriteUrl})`,
-        backgroundSize: '286px 286px',
-        backgroundPosition: `${-col * 22}px ${-row * 22}px`,
-      }}
+      src={directImageUrl}
+      alt={`${name} crest`}
+      loading="lazy"
+      decoding="async"
+      onError={() => setImageFailed(true)}
+      style={{ objectFit: 'contain', display: 'block' }}
     />
   );
 }
