@@ -65,6 +65,7 @@ export default function Managers(){
     return rows.filter(r=>(!fivePlus||+r.played>=5)&&(!q||r.manager.toLowerCase().includes(q)||(r.declared_nation??'').toLowerCase().includes(q)));
   },[rows,search,fivePlus]);
   const selected=useMemo(()=>visible.reduce((n,r)=>n+Number(r.played),0),[visible]);
+  const managersSelected=useMemo(()=>new Set(visible.map(r=>r.manager_id)).size,[visible]);
   const sorted=useMemo(()=>[...visible].sort((a,b)=>{
     if(sortKey==='first_match'||sortKey==='last_match'){
       const d=Date.parse(a[sortKey])-Date.parse(b[sortKey]);
@@ -89,7 +90,7 @@ export default function Managers(){
     <div className="card lb-table-card">
       <div className="lb-table-header">
         <div className="lb-title-group"><span className="section-kicker">Leeds United history</span><h2>Managers</h2><p>All-time Leeds United managerial record</p></div>
-        <div className="section-kicker lb-match-count">{loading?'…':selected.toLocaleString('en-GB')} Matches Selected</div>
+        <div className="section-kicker lb-match-count"><div>{loading?'…':selected.toLocaleString('en-GB')} Matches Selected</div><div>{loading?'…':managersSelected.toLocaleString('en-GB')} Managers Selected</div></div>
       </div>
       <div className="lb-filterbar">
         <div className="lb-filter-section"><span className="lb-filter-label">Competition</span><div className="lb-filter-pills">{filters.map(x=><button key={x} className={`lb-filter-pill ${filter===x?'active':''}`} onClick={()=>setFilter(x)}>{x}</button>)}</div></div>
