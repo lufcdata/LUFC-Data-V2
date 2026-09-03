@@ -1,0 +1,22 @@
+import React,{useEffect,useMemo,useState,type ReactNode}from'react';
+import ClubCrest from'./ClubCrest';
+import{supabase,supabaseConfigError}from'./supabase';
+import'./PlayerGoalkeeperCleanSheetsWidget.css';
+
+type PlayerRow={position_group:string|null};
+type PlayerMatchRow={match_id:number};
+type MatchRow={match_id:number;opponent_id:number;opponent_score:number};
+type ClubRow={club_id:number;display_name:string;crest_url:string|null};
+type ClubCleanSheetRow={clubId:number;name:string;crest:string|null;apps:number;cleanSheets:number;rate:number};
+
+export default function PlayerGoalkeeperCleanSheetsWidget({playerId,fallback=null}:{playerId:number;fallback?:ReactNode}){
+ const[isGoalkeeper,setIsGoalkeeper]=useState<boolean|null>(null),[rows,setRows]=useState<ClubCleanSheetRow[]>([]),[loading,setLoading]=useState(true),[error,setError]=useState<string|null>(supabaseConfigError);
+ useEffect(()=>{let cancelled=false;async function load(){if(!supabase){setLoading(false);return}setLoading(true);setError(null);
+  const{data:player,error:playerError}=await supabase.from('players').select('position_group').eq('player_id',playerId).maybeSingle();if(playerError){if(!cancelled){setError(playerError.message);setLoading(false)}return}const goalkeeper=((player as PlayerRow|null)?.position_group??'').toUpperCase()==='GK';if(cancelled)return;setIsGoalkeeper(goalkeeper);if(!goalkeeper){setLoading(false);return}
+  const{data:pm,error:pmError}=await supabase.from('player_matches').select('match_id').eq('player_id',playerId);if(pmError){if(!cancelled){setError(pmError.message);setLoading(false)}return}const matchIds=((pm??[])as PlayerMatchRow[]).map(r=>r.match_id);if(!matchIds.length){if(!cancelled){setRows([]);setLoading(false)}return}
+  const{data:matches,error:matchError}=await supabase.from('matches').select('match_id,opponent_id,opponent_score').in('match_id',matchIds);if(matchError){if(!cancelled){setError(matchError.message);setLoading(false)}return}const matchRows=(matches??[])as MatchRow[];const opponentIds=Array.from(new Set(matchRows.map(m=>m.opponent_id)));
+  const{data:clubs,error:clubError}=await supabase.from('clubs').select('club_id,display_name,crest_url').in('club_id',opponentIds);if(clubError){if(!cancelled){setError(clubError.message);setLoading(false)}return}const clubMap=new Map(((clubs??[])as ClubRow[]).map(c=>[c.club_id,c]));const agg=new Map<number,{apps:number;cleanSheets:number}>();for(const match of matchRows){const cur=agg.get(match.opponent_id)??{apps:0,cleanSheets:0};cur.apps++;if(Number(match.opponent_score)===0)cur.cleanSheets++;agg.set(match.opponent_id,cur)}const next=Array.from(agg.entries()).filter(([,v])=>v.cleanSheets>0).map(([clubId,v])=>{const club=clubMap.get(clubId);return{clubId,name:club?.display_name??`Club ${clubId}`,crest:club?.crest_url??null,apps:v.apps,cleanSheets:v.cleanSheets,rate:v.apps?v.cleanSheets/v.apps*100:0}}).sort((a,b)=>b.cleanSheets-a.cleanSheets||b.rate-a.rate||a.name.localeCompare(b.name));if(!cancelled){setRows(next);setLoading(false)}}load();return()=>{cancelled=true}},[playerId]);
+ const visible=useMemo(()=>rows.slice(0,5),[rows]);const maxCleanSheets=useMemo(()=>Math.max(1,...visible.map(r=>r.cleanSheets)),[visible]);
+ if(isGoalkeeper===false)return<>{fallback}</>;if(isGoalkeeper===null&&loading)return<>{fallback}</>;
+ return <section className="card player-gk-clean-sheets"><div className="player-gk-clean-sheets-head"><div><span className="section-kicker">Goalkeeper opposition record</span><h2>Most Clean Sheets vs Clubs</h2></div><span className="section-kicker">Top 5</span></div>{loading?<div className="lb-loading">Loading clean-sheet record…</div>:error?<div className="lb-loading"><strong>Data connection error:</strong> {error}</div>:visible.length?<div className="player-gk-clean-sheets-list">{visible.map((r,i)=><div className="player-gk-clean-sheets-row" key={r.clubId}><div className="player-gk-clean-sheets-rank">#{i+1}</div><div className="player-gk-clean-sheets-club"><ClubCrest crestUrl={r.crest} name={r.name}/><div><strong>{r.name}</strong><span>{r.cleanSheets} clean sheets / {r.apps} appearances</span></div></div><div className="player-gk-clean-sheets-value"><strong>{r.cleanSheets}</strong><span>{r.rate.toFixed(1)}% CS rate</span></div><div className="player-gk-clean-sheets-bar"><i style={{width:`${r.cleanSheets/maxCleanSheets*100}%`}}/></div></div>)}</div>:<div className="lb-empty">No clean sheets found for this goalkeeper.</div>}</section>
+}
