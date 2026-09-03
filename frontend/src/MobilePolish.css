@@ -12,8 +12,8 @@
   .lb-toggle-knob{width:10px;height:10px}
   .lb-five-toggle.active .lb-toggle-knob{transform:translateX(10px)}
   .lb-filter-select{width:100%;height:30px;min-width:0;padding:4px 28px 4px 10px;font-size:9px}
-  .lb-search{order:20;width:100%;min-width:0;max-width:none;height:32px;margin-left:0;padding:0 10px;border-radius:8px}
-  .lb-search input{font-size:10px}
+  .lb-search{order:20;width:100%!important;min-width:100%!important;max-width:100%!important;box-sizing:border-box;margin-left:0!important;margin-right:0!important;height:32px;padding:0 10px;border-radius:8px;align-self:stretch}
+  .lb-search input{width:100%;min-width:0;font-size:10px}
   .lb-filter-label{font-size:8px}
 }
 
