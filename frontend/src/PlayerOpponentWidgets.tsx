@@ -15,6 +15,16 @@ type TeammateRow={playerId:number;name:string;src:string|null;position:string|nu
 
 function ScopeToggle({all,onChange}:{all:boolean;onChange:(value:boolean)=>void}){return <div className="player-opponent-scope" role="group" aria-label="Rows shown"><button type="button" className={!all?'active':''} onClick={()=>onChange(false)}>Top 5</button><button type="button" className={all?'active':''} onClick={()=>onChange(true)}>All</button></div>}
 
+async function loadTeammateAppearances(matchIds:number[],playerId:number){
+ const pageSize=1000,rows:TeammateAppearance[]=[];
+ for(let from=0;;from+=pageSize){
+  const{data,error}=await supabase.from('player_matches').select('match_id,player_id').in('match_id',matchIds).neq('player_id',playerId).order('match_id',{ascending:true}).order('player_id',{ascending:true}).range(from,from+pageSize-1);
+  if(error)return{data:null,error};
+  const page=(data??[])as TeammateAppearance[];rows.push(...page);
+  if(page.length<pageSize)return{data:rows,error:null};
+ }
+}
+
 export default function PlayerOpponentWidgets({playerId}:{playerId:number}){
  const[rows,setRows]=useState<OpponentRow[]>([]),[teammates,setTeammates]=useState<TeammateRow[]>([]),[loading,setLoading]=useState(true),[error,setError]=useState<string|null>(supabaseConfigError);
  const[allApps,setAllApps]=useState(false),[allGoals,setAllGoals]=useState(false),[allTeammates,setAllTeammates]=useState(false);
@@ -23,7 +33,7 @@ export default function PlayerOpponentWidgets({playerId}:{playerId:number}){
   const matchIds=((pm??[])as PlayerMatch[]).map(r=>r.match_id);if(!matchIds.length){if(!cancelled){setRows([]);setTeammates([]);setLoading(false)}return}
   const[{data:matchData,error:matchError},{data:teammateData,error:teammateError}]=await Promise.all([
    supabase.from('matches').select('match_id,opponent_id,result').in('match_id',matchIds),
-   supabase.from('player_matches').select('match_id,player_id').in('match_id',matchIds).neq('player_id',playerId)
+   loadTeammateAppearances(matchIds,playerId)
   ]);
   if(matchError||teammateError){if(!cancelled){setError((matchError??teammateError)?.message??'Unable to load player comparison');setLoading(false)}return}
   const matches=(matchData??[])as MatchRow[];const opponentIds=Array.from(new Set(matches.map(m=>m.opponent_id)));
