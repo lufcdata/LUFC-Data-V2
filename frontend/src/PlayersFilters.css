@@ -1,0 +1,5 @@
+.players-nationality-select{min-width:96px;width:104px;max-width:104px}
+
+@media(max-width:700px){
+  .players-nationality-select{width:100%;max-width:none;min-width:0}
+}
