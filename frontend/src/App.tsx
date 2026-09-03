@@ -7,7 +7,6 @@ import Matches from './Matches';
 import PlayerPage from './PlayerPage';
 import PlayerInformation from './PlayerInformation';
 import PlayerMatchLog from './PlayerMatchLog';
-import PlayerManagerWidget from './PlayerManagerWidget';
 import './PlayerMatchLog.css';
 import './PlayerPageChart.css';
 
@@ -23,7 +22,7 @@ function App() {
  const [theme,setTheme]=useState<'light'|'dark'>('dark');
  const [page,setPage]=useState<Page>('player-profile');
  const isDark=theme==='dark';
- const content=page==='matches'?<Matches/>:page==='players'?<Players/>:page==='player-profile'?<><PlayerPage onBack={()=>setPage('players')}/><PlayerInformation playerId={276}/><PlayerMatchLog playerId={276} playerName="Billy Bremner"/><PlayerManagerWidget playerId={276} playerName="Billy Bremner"/></>:page==='managers'?<Managers/>:<Leaderboard/>;
+ const content=page==='matches'?<Matches/>:page==='players'?<Players/>:page==='player-profile'?<><PlayerPage onBack={()=>setPage('players')}/><PlayerInformation playerId={276}/><PlayerMatchLog playerId={276} playerName="Billy Bremner"/></>:page==='managers'?<Managers/>:<Leaderboard/>;
  return <ErrorBoundary><main className={`leaderboard-isolate ${isDark?'theme-dark':'theme-light'}`}>
   <nav className="page-nav" aria-label="Database sections">
    <button className={page==='matches'?'active':''} onClick={()=>setPage('matches')}>Matches</button>
