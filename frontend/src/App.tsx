@@ -8,6 +8,7 @@ import PlayerPage from './PlayerPage';
 import PlayerMatchLog from './PlayerMatchLog';
 import PlayerManagerWidget from './PlayerManagerWidget';
 import './PlayerMatchLog.css';
+import './PlayerPageChart.css';
 
 class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
   state = { error: null as Error | null };
