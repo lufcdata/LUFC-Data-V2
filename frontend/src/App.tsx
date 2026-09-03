@@ -21,14 +21,13 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | 
 type Page='matches'|'match-centre'|'players'|'player-profile'|'managers'|'opponents';
 function App() {
  const [theme,setTheme]=useState<'light'|'dark'>('dark');
- const [page,setPage]=useState<Page>('matches');
- const [selectedMatchId,setSelectedMatchId]=useState(4846);
+ const [page,setPage]=useState<Page>('match-centre');
+ const [selectedMatchId]=useState(4846);
  const [selectedPlayerId,setSelectedPlayerId]=useState(276);
  const [selectedPlayerName,setSelectedPlayerName]=useState('Billy Bremner');
  const isDark=theme==='dark';
  const openPlayer=(playerId:number,playerName:string)=>{setSelectedPlayerId(playerId);setSelectedPlayerName(playerName);setPage('player-profile')};
- const openMatch=(matchId:number)=>{setSelectedMatchId(matchId);setPage('match-centre')};
- const content=page==='matches'?<Matches onSelectMatch={openMatch}/>:page==='match-centre'?<MatchCentre matchId={selectedMatchId} onBack={()=>setPage('matches')}/>:page==='players'?<Players onSelectPlayer={openPlayer}/>:page==='player-profile'?<Fragment key={selectedPlayerId}><PlayerPage playerId={selectedPlayerId} onBack={()=>setPage('players')}/><PlayerMatchLog playerId={selectedPlayerId} playerName={selectedPlayerName}/></Fragment>:page==='managers'?<Managers/>:<Leaderboard/>;
+ const content=page==='matches'?<Matches/>:page==='match-centre'?<MatchCentre matchId={selectedMatchId} onBack={()=>setPage('matches')}/>:page==='players'?<Players onSelectPlayer={openPlayer}/>:page==='player-profile'?<Fragment key={selectedPlayerId}><PlayerPage playerId={selectedPlayerId} onBack={()=>setPage('players')}/><PlayerMatchLog playerId={selectedPlayerId} playerName={selectedPlayerName}/></Fragment>:page==='managers'?<Managers/>:<Leaderboard/>;
  return <ErrorBoundary><main className={`leaderboard-isolate ${isDark?'theme-dark':'theme-light'}`}>
   <nav className="page-nav" aria-label="Database sections">
    <button className={page==='matches'||page==='match-centre'?'active':''} onClick={()=>setPage('matches')}>Matches</button>
