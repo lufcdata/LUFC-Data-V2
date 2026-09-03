@@ -1,4 +1,4 @@
-import React, { Component, useState, type ErrorInfo, type ReactNode } from 'react';
+import React, { Component, Fragment, useState, type ErrorInfo, type ReactNode } from 'react';
 import { Moon, Sun } from 'lucide-react';
 import Leaderboard from './Leaderboard';
 import Managers from './Managers';
@@ -20,8 +20,11 @@ type Page='matches'|'players'|'player-profile'|'managers'|'opponents';
 function App() {
  const [theme,setTheme]=useState<'light'|'dark'>('dark');
  const [page,setPage]=useState<Page>('player-profile');
+ const [selectedPlayerId,setSelectedPlayerId]=useState(276);
+ const [selectedPlayerName,setSelectedPlayerName]=useState('Billy Bremner');
  const isDark=theme==='dark';
- const content=page==='matches'?<Matches/>:page==='players'?<Players/>:page==='player-profile'?<><PlayerPage onBack={()=>setPage('players')}/><PlayerMatchLog playerId={276} playerName="Billy Bremner"/></>:page==='managers'?<Managers/>:<Leaderboard/>;
+ const openPlayer=(playerId:number,playerName:string)=>{setSelectedPlayerId(playerId);setSelectedPlayerName(playerName);setPage('player-profile')};
+ const content=page==='matches'?<Matches/>:page==='players'?<Players onSelectPlayer={openPlayer}/>:page==='player-profile'?<Fragment key={selectedPlayerId}><PlayerPage playerId={selectedPlayerId} onBack={()=>setPage('players')}/><PlayerMatchLog playerId={selectedPlayerId} playerName={selectedPlayerName}/></Fragment>:page==='managers'?<Managers/>:<Leaderboard/>;
  return <ErrorBoundary><main className={`leaderboard-isolate ${isDark?'theme-dark':'theme-light'}`}>
   <nav className="page-nav" aria-label="Database sections">
    <button className={page==='matches'?'active':''} onClick={()=>setPage('matches')}>Matches</button>
