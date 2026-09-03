@@ -13,6 +13,7 @@ import PlayerGoalkeeperCleanSheetsWidget from'./PlayerGoalkeeperCleanSheetsWidge
 import PlayerSeasonLog from'./PlayerSeasonLog';
 import{supabase,supabaseConfigError}from'./supabase';
 import'./PlayerPage.css';
+import'./PlayerPageHero.css';
 
 type PlayerRow={player_id:number;legacy_player_id:number;display_name:string;full_name:string|null;status:string|null;position_group:string|null;position_detail:string|null;declared_nation:string|null;profile_image_url:string|null;date_of_birth:string|null;birth_date_precision:string|null};
 type LeaderboardRow={player_id:number;appearances:number;starts:number;sub_apps:number;sub_off:number;won:number;win_pct:number|string;goals:number;gpg:number|string;captain:number;red_cards:number};
