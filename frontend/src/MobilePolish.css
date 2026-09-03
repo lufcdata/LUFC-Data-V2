@@ -16,3 +16,8 @@
   .lb-search input{font-size:10px}
   .lb-filter-label{font-size:8px}
 }
+
+@media(max-width:520px){
+  .player-profile-hero-details{padding-top:8px!important}
+  .player-profile-hero-detail,.player-profile-hero-detail:first-child{padding-top:8px!important;padding-bottom:8px!important}
+}
