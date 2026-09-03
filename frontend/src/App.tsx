@@ -4,6 +4,7 @@ import Leaderboard from './Leaderboard';
 import Managers from './Managers';
 import Players from './Players';
 import Matches from './Matches';
+import MatchCentre from './MatchCentre';
 import PlayerPage from './PlayerPage';
 import PlayerMatchLog from './PlayerMatchLog';
 import './PlayerMatchLog.css';
@@ -17,18 +18,20 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | 
   render() { if (this.state.error) return <main className="leaderboard-isolate"><div className="card lb-runtime-error"><strong>LUFC Data could not render.</strong><span>{this.state.error.message}</span></div></main>; return this.props.children; }
 }
 
-type Page='matches'|'players'|'player-profile'|'managers'|'opponents';
+type Page='matches'|'match-centre'|'players'|'player-profile'|'managers'|'opponents';
 function App() {
  const [theme,setTheme]=useState<'light'|'dark'>('dark');
- const [page,setPage]=useState<Page>('player-profile');
+ const [page,setPage]=useState<Page>('matches');
+ const [selectedMatchId,setSelectedMatchId]=useState(4846);
  const [selectedPlayerId,setSelectedPlayerId]=useState(276);
  const [selectedPlayerName,setSelectedPlayerName]=useState('Billy Bremner');
  const isDark=theme==='dark';
  const openPlayer=(playerId:number,playerName:string)=>{setSelectedPlayerId(playerId);setSelectedPlayerName(playerName);setPage('player-profile')};
- const content=page==='matches'?<Matches/>:page==='players'?<Players onSelectPlayer={openPlayer}/>:page==='player-profile'?<Fragment key={selectedPlayerId}><PlayerPage playerId={selectedPlayerId} onBack={()=>setPage('players')}/><PlayerMatchLog playerId={selectedPlayerId} playerName={selectedPlayerName}/></Fragment>:page==='managers'?<Managers/>:<Leaderboard/>;
+ const openMatch=(matchId:number)=>{setSelectedMatchId(matchId);setPage('match-centre')};
+ const content=page==='matches'?<Matches onSelectMatch={openMatch}/>:page==='match-centre'?<MatchCentre matchId={selectedMatchId} onBack={()=>setPage('matches')}/>:page==='players'?<Players onSelectPlayer={openPlayer}/>:page==='player-profile'?<Fragment key={selectedPlayerId}><PlayerPage playerId={selectedPlayerId} onBack={()=>setPage('players')}/><PlayerMatchLog playerId={selectedPlayerId} playerName={selectedPlayerName}/></Fragment>:page==='managers'?<Managers/>:<Leaderboard/>;
  return <ErrorBoundary><main className={`leaderboard-isolate ${isDark?'theme-dark':'theme-light'}`}>
   <nav className="page-nav" aria-label="Database sections">
-   <button className={page==='matches'?'active':''} onClick={()=>setPage('matches')}>Matches</button>
+   <button className={page==='matches'||page==='match-centre'?'active':''} onClick={()=>setPage('matches')}>Matches</button>
    <button className={page==='players'||page==='player-profile'?'active':''} onClick={()=>setPage('players')}>Players</button>
    <button className={page==='managers'?'active':''} onClick={()=>setPage('managers')}>Managers</button>
    <button className={page==='opponents'?'active':''} onClick={()=>setPage('opponents')}>Opponents</button>
