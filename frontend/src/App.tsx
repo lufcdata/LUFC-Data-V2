@@ -22,7 +22,7 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | 
 type Page='matches'|'match-centre'|'players'|'player-profile'|'managers'|'manager-profile'|'opponents';
 function App() {
  const [theme,setTheme]=useState<'light'|'dark'>('dark');
- const [page,setPage]=useState<Page>('match-centre');
+ const [page,setPage]=useState<Page>('matches');
  const [selectedMatchId,setSelectedMatchId]=useState(4846);
  const [selectedPlayerId,setSelectedPlayerId]=useState(276);
  const [selectedPlayerName,setSelectedPlayerName]=useState('Billy Bremner');
