@@ -1,0 +1,12 @@
+import React,{useEffect,useState}from'react';
+import{supabase,supabaseConfigError}from'./supabase';
+import'./PlayerCompetitionBreakdown.css';
+
+type MatchRow={match_id:number;competition:string;leeds_score:number;result:string};
+type CompetitionStat={competition:string;matches:number;goalsFor:number;won:number;winPct:number};
+
+export default function ManagerCompetitionBreakdown({managerId}:{managerId:number}){
+ const[rows,setRows]=useState<CompetitionStat[]>([]),[loading,setLoading]=useState(true),[error,setError]=useState<string|null>(supabaseConfigError);
+ useEffect(()=>{let cancelled=false;(async()=>{if(!supabase){setLoading(false);return}setLoading(true);setError(null);const{data,error:e}=await supabase.from('match_centre_summary').select('match_id,competition,leeds_score,result').eq('leeds_manager_id',managerId);if(e){if(!cancelled){setError(e.message);setLoading(false)}return}const agg=new Map<string,{matches:number;goalsFor:number;won:number}>();for(const m of(data??[])as MatchRow[]){const key=m.competition||'Unknown',cur=agg.get(key)??{matches:0,goalsFor:0,won:0};cur.matches++;cur.goalsFor+=Number(m.leeds_score??0);if(m.result==='Won')cur.won++;agg.set(key,cur)}const next=[...agg.entries()].map(([competition,v])=>({competition,...v,winPct:v.matches?v.won/v.matches*100:0})).sort((a,b)=>b.matches-a.matches||a.competition.localeCompare(b.competition));if(!cancelled){setRows(next);setLoading(false)}})();return()=>{cancelled=true}},[managerId]);
+ return <section className="card player-competition-compact"><div className="player-profile-panelhead"><div><span className="section-kicker">Career analysis</span><h2>Competition Breakdown</h2></div><div className="section-kicker">{loading?'…':`${rows.length} ${rows.length===1?'Competition':'Competitions'}`}</div></div>{loading?<div className="lb-loading">Loading competition breakdown…</div>:error?<div className="lb-loading">Competition breakdown unavailable</div>:rows.length?<div className="player-competition-compact-list">{rows.map(r=><div className="player-competition-compact-row" key={r.competition}><div className="player-competition-compact-main"><strong>{r.competition}</strong><span>{r.matches} matches · {r.goalsFor} goals · {r.won} wins</span></div><div className="player-competition-compact-rate"><strong>{r.winPct.toFixed(1)}%</strong><span>Win rate</span></div><div className="player-competition-compact-track"><i style={{width:`${r.winPct}%`}}/></div></div>)}</div>:<div className="lb-empty">No competition matches found for this manager.</div>}</section>;
+}
