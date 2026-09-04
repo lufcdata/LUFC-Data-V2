@@ -43,4 +43,11 @@ jobs:
       - name: Install frontend dependencies
         if: steps.frontend-node-modules.outputs.cache-hit != 'true'
         run: npm install --no-audit --no-fund --prefer-offline
+      - name: Generate frontend lockfile
+        run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund --prefer-offline
+      - name: Upload frontend lockfile
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-package-lock
+          path: frontend/package-lock.json
       - run: npm run build
