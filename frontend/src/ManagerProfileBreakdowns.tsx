@@ -9,11 +9,10 @@ import'./ManagerProfileBreakdowns.css';
 type BreakdownRow={category:string;entity_type:'club'|'player';entity_id:number;label:string;value:number;secondary:string;rank_order:number};
 type ClubMeta={club_id:number;canonical_name:string;crest_url:string|null};
 type PlayerMeta={player_id:number;display_name:string;profile_image_url:string|null};
-const categories=['Opponents Faced','Most Wins','Most Defeats','Most Goals Against','Most Conceded Against','Top Appearances','Top Goalscorers','Top Assists','Debutants'] as const;
+const categories=['Opponents Faced','Most Wins','Most Defeats','Most Goals Against','Most Conceded Against','Top Appearances','Top Goalscorers','Top Assists'] as const;
 type Category=typeof categories[number];
-const toggleCategories=new Set<Category>(['Opponents Faced','Most Wins','Most Defeats','Most Goals Against','Most Conceded Against','Top Appearances','Top Goalscorers','Top Assists']);
 const valueLabels:Record<string,string>={
- 'Opponents Faced':'matches','Most Wins':'wins','Most Defeats':'defeats','Most Goals Against':'goals','Most Conceded Against':'goals conceded','Top Appearances':'apps','Top Goalscorers':'goals','Top Assists':'assists','Debutants':'apps'
+ 'Opponents Faced':'matches','Most Wins':'wins','Most Defeats':'defeats','Most Goals Against':'goals','Most Conceded Against':'goals conceded','Top Appearances':'apps','Top Goalscorers':'goals','Top Assists':'assists'
 };
 function emptyCopy(category:string){return category==='Top Assists'?'No recorded assist data is available for this manager.':`No ${category.toLowerCase()} data found.`}
 function ScopeToggle({all,onChange,label}:{all:boolean;onChange:(value:boolean)=>void;label:string}){return <div className="player-opponent-scope" role="group" aria-label={`${label} rows shown`}><button type="button" className={!all?'active':''} onClick={()=>onChange(false)}>Top 5</button><button type="button" className={all?'active':''} onClick={()=>onChange(true)}>All</button></div>}
@@ -29,8 +28,8 @@ export default function ManagerProfileBreakdowns({managerId}:{managerId:number})
   ]);if(cancelled)return;if(clubError||playerError){setError((clubError??playerError)?.message??'Unable to load breakdown identities');setRows([]);setLoading(false);return}setRows(breakdown);setClubMeta(new Map(((clubs??[])as ClubMeta[]).map(c=>[c.club_id,c])));setPlayerMeta(new Map(((players??[])as PlayerMeta[]).map(p=>[p.player_id,p])));setLoading(false)})();return()=>{cancelled=true}},[managerId]);
  const grouped=useMemo(()=>new Map(categories.map(category=>[category,rows.filter(r=>r.category===category).sort((a,b)=>a.rank_order-b.rank_order)])),[rows]);
  return <section className="manager-breakdown-grid" aria-label="Manager career breakdowns">
-  {categories.map(category=>{const items=grouped.get(category)??[],hasToggle=toggleCategories.has(category),all=Boolean(showAll[category]),visible=hasToggle&&!all?items.slice(0,5):category==='Debutants'?items.slice(0,6):items,max=Math.max(1,...items.map(r=>Number(r.value)));return <section className={`card player-competition-compact manager-breakdown-card${hasToggle&&!all?' top-five':''}`} key={category}>
-   <div className="player-profile-panelhead"><div><span className="section-kicker">Manager analysis</span><h2>{category}</h2></div>{hasToggle?<ScopeToggle all={all} onChange={value=>setShowAll(current=>({...current,[category]:value}))} label={category}/>:<div className="section-kicker">{loading?'…':items.length?`Top ${Math.min(6,items.length)}`:'—'}</div>}</div>
+  {categories.map(category=>{const items=grouped.get(category)??[],all=Boolean(showAll[category]),visible=all?items:items.slice(0,5),max=Math.max(1,...items.map(r=>Number(r.value)));return <section className={`card player-competition-compact manager-breakdown-card${!all?' top-five':''}`} key={category}>
+   <div className="player-profile-panelhead"><div><span className="section-kicker">Manager analysis</span><h2>{category}</h2></div><ScopeToggle all={all} onChange={value=>setShowAll(current=>({...current,[category]:value}))} label={category}/></div>
    {loading?<div className="lb-loading">Loading breakdown…</div>:error?<div className="lb-loading">Breakdown unavailable</div>:visible.length?<div className="player-competition-compact-list">
     {visible.map(r=>{const club=r.entity_type==='club'?clubMeta.get(r.entity_id):null,player=r.entity_type==='player'?playerMeta.get(r.entity_id):null;return <div className="player-competition-compact-row" key={`${category}-${r.entity_type}-${r.entity_id}`}>
      <div className={`player-competition-compact-main manager-breakdown-identity ${r.entity_type==='player'?'manager-breakdown-player':'manager-breakdown-club'}`}>{r.entity_type==='club'?<ClubCrest crestUrl={club?.crest_url??null} name={club?.canonical_name??r.label}/>:<PlayerIcon name={player?.display_name??r.label} src={player?.profile_image_url??null}/>}<div><strong>{r.label}</strong><span>{r.secondary}</span></div></div>
