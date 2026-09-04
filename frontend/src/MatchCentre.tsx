@@ -24,7 +24,21 @@ const iconPath=(name:string)=>`/appicons/${encodeURIComponent(name)}`;
 const ageYearsDays=(dob:string|null|undefined,onDate:string)=>{if(!dob)return'—';const birth=new Date(`${dob}T00:00:00Z`),on=new Date(`${onDate}T00:00:00Z`);let years=on.getUTCFullYear()-birth.getUTCFullYear();let anniversary=new Date(Date.UTC(on.getUTCFullYear(),birth.getUTCMonth(),birth.getUTCDate()));if(anniversary>on){years-=1;anniversary=new Date(Date.UTC(on.getUTCFullYear()-1,birth.getUTCMonth(),birth.getUTCDate()))}const days=Math.floor((on.getTime()-anniversary.getTime())/86400000);return`${years}-${days}`};
 const ageDecimal=(dob:string|null|undefined,onDate:string)=>{if(!dob)return null;const birth=new Date(`${dob}T00:00:00Z`),on=new Date(`${onDate}T00:00:00Z`);return Math.max(0,(on.getTime()-birth.getTime())/86400000/365.2425)};
 
-function parseOpponentGoals(raw:string|null,opponent:string):TimelineEvent[]{if(!raw)return[];return raw.split(/[,;]\s*/).map((part,i)=>{const m=part.match(/^(.*?)\s+(\d+(?:\+\d+)?)'?$/);if(!m)return null;return{key:`opp-goal-${i}`,minute:minuteValue(m[2]),minuteLabel:`${m[2]}'`,kind:'goal-opponent' as const,title:m[1].trim(),detail:`${opponent} goal`,tag:'GOAL'}}).filter((x):x is TimelineEvent=>Boolean(x))}
+function parseOpponentGoals(raw:string|null,opponent:string):TimelineEvent[]{
+ if(!raw)return[];
+ const parsed:TimelineEvent[]=[];
+ let previousScorer='';
+ raw.split(/[,;]\s*/).forEach((sourcePart,i)=>{
+  const part=sourcePart.trim().replace(/[’]/g,"'");
+  const repeated=part.match(/^(?:penalty\s+)?(\d+(?:\+\d+)?)'?$/i);
+  if(repeated&&previousScorer){const minute=repeated[1];parsed.push({key:`opp-goal-${i}`,minute:minuteValue(minute),minuteLabel:`${minute}'`,kind:'goal-opponent',title:previousScorer,detail:`${opponent} goal`,tag:'GOAL'});return}
+  const full=part.match(/^(.*?)\s+(\d+(?:\+\d+)?)'?$/);
+  if(!full)return;
+  previousScorer=full[1].trim();
+  parsed.push({key:`opp-goal-${i}`,minute:minuteValue(full[2]),minuteLabel:`${full[2]}'`,kind:'goal-opponent',title:previousScorer,detail:`${opponent} goal`,tag:'GOAL'});
+ });
+ return parsed;
+}
 function redCardDetail(raw:string|null,recipient:string){if(!raw)return'Opposition red card';const line=raw.split('\n').find(v=>v.includes('Opposition Red Card:')&&v.includes(recipient));const m=line?.match(/\((.*?)\)\s*$/);return m?.[1]?.trim()||'Opposition red card'}
 
 export default function MatchCentre({matchId,onBack}:{matchId:number;onBack:()=>void}){
