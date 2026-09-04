@@ -7,6 +7,7 @@ import ManagerCareerMetrics from'./ManagerCareerMetrics';
 import ManagerCompetitionBreakdown from'./ManagerCompetitionBreakdown';
 import ManagerPerformanceRadar from'./ManagerPerformanceRadar';
 import ManagerProfileBreakdowns from'./ManagerProfileBreakdowns';
+import ManagerDebutantsTable from'./ManagerDebutantsTable';
 import{supabase,supabaseConfigError}from'./supabase';
 import'./PlayerPage.css';
 import'./PlayerPageHero.css';
@@ -40,5 +41,6 @@ export default function ManagerPage({managerId,onBack}:{managerId:number;onBack?
   <ManagerPerformanceRadar managerId={managerId}/>
   <div className="player-career-summary-grid"><ManagerCareerMetrics managerId={managerId}/><ManagerCompetitionBreakdown managerId={managerId}/></div>
   <ManagerProfileBreakdowns managerId={managerId}/>
+  <ManagerDebutantsTable managerId={managerId}/>
  </div>;
 }
