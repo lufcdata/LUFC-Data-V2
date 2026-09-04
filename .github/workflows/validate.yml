@@ -4,6 +4,9 @@ on:
   push:
   pull_request:
 
+permissions:
+  contents: write
+
 jobs:
   tests:
     runs-on: ubuntu-latest
@@ -45,9 +48,16 @@ jobs:
         run: npm install --no-audit --no-fund --prefer-offline
       - name: Generate frontend lockfile
         run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund --prefer-offline
-      - name: Upload frontend lockfile
-        uses: actions/upload-artifact@v4
-        with:
-          name: frontend-package-lock
-          path: frontend/package-lock.json
+      - name: Commit frontend lockfile
+        if: github.event_name == 'push'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package-lock.json
+          if git diff --cached --quiet; then
+            echo "package-lock.json is already current"
+          else
+            git commit -m "Add frontend package lock"
+            git push origin HEAD:${GITHUB_REF_NAME}
+          fi
       - run: npm run build
