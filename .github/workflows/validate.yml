@@ -34,5 +34,13 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
-      - run: npm install
+      - name: Cache frontend node_modules
+        id: frontend-node-modules
+        uses: actions/cache@v4
+        with:
+          path: frontend/node_modules
+          key: ${{ runner.os }}-node20-frontend-${{ hashFiles('frontend/package.json') }}
+      - name: Install frontend dependencies
+        if: steps.frontend-node-modules.outputs.cache-hit != 'true'
+        run: npm install --no-audit --no-fund --prefer-offline
       - run: npm run build
