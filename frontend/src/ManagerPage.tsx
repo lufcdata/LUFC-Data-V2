@@ -17,7 +17,6 @@ type SpellRow={manager_spell_id:number;legacy_manager_order:number|null;role:str
 type MetricsRow={manager_id:number;days_in_charge:number;players_used:number;debuts_given:number;clean_sheets:number;opponents_faced:number;opponents_defeated:number;opponents_defeated_pct:number|string;wins_at_elland_road:number;league_points_won:number};
 type Summary={manager:ManagerRow;leaderboard:LeaderboardRow;spells:SpellRow[];metrics:MetricsRow};
 
-function formatDate(value:string|null){if(!value)return'—';const d=new Date(`${value}T00:00:00`);if(Number.isNaN(d.getTime()))return'—';return d.toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})}
 function careerYears(spells:SpellRow[]){if(!spells.length)return'—';return spells.map(s=>{const a=s.date_joined?.slice(0,4)??'—',b=s.date_left?.slice(0,4)??'present';return a===b?a:`${a}–${b}`}).join(' · ')}
 function roleLabel(spells:SpellRow[]){const roles=Array.from(new Set(spells.map(s=>s.role?.trim()).filter((v):v is string=>Boolean(v))));return roles.length?roles.join(' · '):'Manager'}
 
@@ -39,6 +38,5 @@ export default function ManagerPage({managerId,onBack}:{managerId:number;onBack?
   <ManagerPerformanceRadar managerId={managerId}/>
   <ManagerInformation managerId={managerId}/>
   <div className="player-career-summary-grid"><ManagerCareerMetrics managerId={managerId}/><ManagerCompetitionBreakdown managerId={managerId}/></div>
-  <section className="card manager-profile-section"><div className="manager-profile-section-head"><div><span className="section-kicker">Leeds career</span><h2>Managerial Spells</h2></div><span className="metric-value">{summary.spells.length} spell{summary.spells.length===1?'':'s'}</span></div><div className="manager-spell-list">{summary.spells.map((s,i)=><div className="manager-spell-row" key={s.manager_spell_id}><span className="manager-spell-index">{i+1}</span><div><strong>{s.role??'Manager'}</strong><span>{formatDate(s.date_joined)} – {s.date_left?formatDate(s.date_left):'present'}</span></div><span className={`manager-status-pill ${s.status==='Current'?'current':'former'}`}>{s.caretaker?'Caretaker':s.status??'Former'}</span></div>)}</div></section>
  </div>;
 }
