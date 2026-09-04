@@ -16,7 +16,6 @@ type Sub={substitution_id:number;minute_raw:string|null;minute_base:number|null;
 type OppRed={opposition_red_card_id:number;recipient_raw:string;minute_raw:string|null;minute_base:number|null;stoppage_minute:number|null};
 type Milestone={milestone_category:string;person_name:string;milestone:string;milestone_number:number;category_sort:number;milestone_sort:number};
 type TimelineEvent={key:string;minute:number;minuteLabel:string;kind:'goal-leeds'|'goal-opponent'|'sub'|'red'|'kickoff'|'half-time'|'full-time';title:string;detail?:string;tag:string};
-
 type OppGoalDraft={title:string;minuteText:string|null;phase:'1H'|'2H'|null;sourceIndex:number};
 
 const dateLabel=(d:string)=>new Date(`${d}T00:00:00`).toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
@@ -28,11 +27,12 @@ const ageDecimal=(dob:string|null|undefined,onDate:string)=>{if(!dob)return null
 
 function splitOpponentGoalParts(raw:string){const parts:string[]=[];let depth=0,start=0;for(let i=0;i<raw.length;i++){const ch=raw[i];if(ch==='(')depth++;else if(ch===')'&&depth>0)depth--;else if((ch===','||ch===';')&&depth===0){parts.push(raw.slice(start,i).trim());start=i+1}}parts.push(raw.slice(start).trim());return parts.filter(Boolean)}
 function parseOpponentGoals(raw:string|null,opponent:string,halfTimeScore:number|null,totalScore:number):TimelineEvent[]{
- if(!raw)return[];
+ if(!raw||totalScore<=0)return[];
  const drafts:OppGoalDraft[]=[];
  let previousScorer='';
  splitOpponentGoalParts(raw).forEach((sourcePart,i)=>{
   const part=sourcePart.trim().replace(/[’]/g,"'");
+  if(/^(?:-|—|–|none|n\/a)$/i.test(part))return;
   const repeated=part.match(/^(?:penalty\s+)?(\d+(?:\+\d+)?)'?$/i);
   if(repeated&&previousScorer){drafts.push({title:previousScorer,minuteText:repeated[1],phase:null,sourceIndex:i});return}
   const full=part.match(/^(.*?)\s+(\d+(?:\+\d+)?)'?$/);
