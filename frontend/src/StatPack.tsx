@@ -1,7 +1,7 @@
 import React,{useEffect,useMemo,useState}from'react';
 import{supabase,supabaseConfigError}from'./supabase';
 import{researchUpcomingFixture}from'./statPackFixtureResearch';
-import{matchesAtPhysicalStadium}from'./stadiumIdentity';
+import{canonicalStadiumKey,matchesAtPhysicalStadium}from'./stadiumIdentity';
 
 type Match={match_id:number;match_date:string;season:string|null;opponent:string;competition:string;venue_type:string;leeds_score:number;opponent_score:number;result:string;stadium:string|null;leeds_manager:string|null;opposition_manager_name:string|null;first_goal:string|null;captain_player_id:number|null;kickoff_time:string|null};
 type Goal={goal_id:number;match_id:number;leeds_player_id:number|null;assist_player_id:number|null;is_own_goal:boolean|null;minute_normalised:number|null};
@@ -57,7 +57,7 @@ export default function StatPack(){
  const opponents=useMemo(()=>Array.from(new Set(matches.map(m=>m.opponent))).sort(),[matches]);
  const competitions=useMemo(()=>Array.from(new Set(matches.map(m=>m.competition))).sort(),[matches]);
  const seasons=useMemo(()=>Array.from(new Set(matches.map(m=>m.season).filter((s):s is string=>Boolean(s)))).sort((a,b)=>seasonStart(b)-seasonStart(a)),[matches]);
- const stadiums=useMemo(()=>Array.from(new Set(matches.map(m=>m.stadium).filter((s):s is string=>Boolean(s)))).sort(),[matches]);
+ const stadiums=useMemo(()=>Array.from(new Set(matches.map(m=>canonicalStadiumKey(m.stadium)).filter((s):s is string=>Boolean(s)))).sort(),[matches]);
  useEffect(()=>{if(!matches.length)return;const latest=[...matches].sort((a,b)=>a.match_date.localeCompare(b.match_date)||a.match_id-b.match_id).at(-1);if(!latest)return;if(!fixtureCompetition)setFixtureCompetition(latest.competition);if(!fixtureSeason&&latest.season)setFixtureSeason(latest.season)},[matches,fixtureCompetition,fixtureSeason]);
 
  const generate=()=>{if(!opponent)return;setGenerating(true);setStats([]);window.setTimeout(()=>{try{
