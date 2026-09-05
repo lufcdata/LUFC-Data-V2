@@ -25,7 +25,7 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | 
 type Page='matches'|'match-centre'|'players'|'player-profile'|'managers'|'manager-profile'|'opponents'|'test-a1'|'player-admin';
 function App() {
  const [theme,setTheme]=useState<'light'|'dark'>('dark');
- const [page,setPage]=useState<Page>(()=>window.location.pathname==='/admin/players'?'player-admin':'matches');
+ const [page,setPage]=useState<Page>(()=>{const params=new URLSearchParams(window.location.search);return window.location.pathname==='/admin/players'||params.get('admin')==='players'?'player-admin':'matches'});
  const [selectedMatchId,setSelectedMatchId]=useState(4846);
  const [selectedPlayerId,setSelectedPlayerId]=useState(276);
  const [selectedPlayerName,setSelectedPlayerName]=useState('Billy Bremner');
