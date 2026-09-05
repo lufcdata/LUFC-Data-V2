@@ -34,3 +34,5 @@ export default function TestA1(){
   <section className="card test-a1-timeline"><header><h2>Leeds Career <ChevronRight size={15}/></h2></header><div className="test-a1-timeline-main"><strong>{career}</strong><span>772 competitive appearances across Billy Bremner's Leeds United career.</span><div className="test-a1-line"><i/></div><div className="test-a1-years"><span>1959</span><span>1965</span><span>1970</span><span>1976</span></div></div></section>
  </div></div>;
 }
+
+// Deployment marker: pre-GT-America Test A1 state restored.
