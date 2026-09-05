@@ -173,6 +173,21 @@ export function researchUpcomingFixture(
   }
  }
 
+ // Win-to-nil significance combines the result and clean-sheet requirements into
+ // one exact fixture condition. This is distinct from a clean-sheet sequence: a
+ // 0-0 does not qualify, and only a genuine first or long wait is promoted.
+ if(venueH2h.length>=5){
+  const winsToNil=venueH2h.filter(m=>won(m)&&m.opponent_score===0);
+  const lastWinToNil=winsToNil.at(-1);
+  const sinceLast=lastWinToNil?venueH2h.filter(m=>m.match_date>lastWinToNil.match_date).length:venueH2h.length;
+  const where=fixture.venue==='H'?'at home':'away';
+  if(!lastWinToNil){
+   add(`Opponent · ${fixture.venue==='H'?'Home':'Away'} Win to Nil`,`Victory without conceding against ${fixture.opponent} would be Leeds' first recorded ${fixture.competition} win to nil ${where} against them.`,99,`${venueH2h.length} ${fixture.competition} ${where} meetings with ${fixture.opponent} checked; no previous win to nil found`,'opponent-venue-win-to-nil');
+  }else if(sinceLast>=4){
+   add(`Opponent · ${fixture.venue==='H'?'Home':'Away'} Win to Nil`,`Victory without conceding against ${fixture.opponent} would be Leeds' first ${fixture.competition} win to nil ${where} against them since ${lastWinToNil.match_date.slice(0,4)}.`,97,`${sinceLast} ${fixture.competition} ${where} meetings since Leeds last beat ${fixture.opponent} without conceding`,'opponent-venue-win-to-nil');
+  }
+ }
+
  // Venue-conditioned clean-sheet history against the upcoming opponent.
  // This is separate from the all-venue opponent sequence below: the fixture venue
  // is part of the trigger, so home and away shutout histories can never contaminate each other.
