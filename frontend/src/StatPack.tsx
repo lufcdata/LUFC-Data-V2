@@ -10,8 +10,10 @@ type RunSpec={label:string;fn:(m:Match)=>boolean;min:number;noun:string;negative
 
 const PAGE=1000;
 const LEAGUE=new Set(['Premier League','Championship','Division One','Division Two','League One']);
+const TOP_FLIGHT=new Set(['Premier League','Division One']);
 const MILESTONES=[10,25,50,75,100,150,200,250,300,400,500];
 const league=(m:Match)=>LEAGUE.has(m.competition);
+const topFlight=(m:Match)=>TOP_FLIGHT.has(m.competition);
 const date=(d:string)=>new Date(`${d}T00:00:00`);
 const fmt=(d:string)=>date(d).toLocaleDateString('en-GB',{month:'long',year:'numeric'});
 const yr=(d:string)=>date(d).getFullYear();
@@ -66,6 +68,8 @@ export default function StatPack(){
   for(const xs of appsBy.values())xs.sort((a,b)=>a.match_date.localeCompare(b.match_date)||a.match_id-b.match_id);
   for(const g of goals){if(g.leeds_player_id&&!g.is_own_goal){const xs=goalsByPlayer.get(g.leeds_player_id)??[];xs.push(g);goalsByPlayer.set(g.leeds_player_id,xs);const s=goalMatchesByPlayer.get(g.leeds_player_id)??new Set<number>();s.add(g.match_id);goalMatchesByPlayer.set(g.leeds_player_id,s)}if(g.assist_player_id){const xs=assistsByPlayer.get(g.assist_player_id)??[];xs.push(g);assistsByPlayer.set(g.assist_player_id,xs);const s=assistMatchesByPlayer.get(g.assist_player_id)??new Set<number>();s.add(g.match_id);assistMatchesByPlayer.set(g.assist_player_id,s)}}
   const goalSet=(pid:number)=>goalMatchesByPlayer.get(pid)??new Set<number>(),assistSet=(pid:number)=>assistMatchesByPlayer.get(pid)??new Set<number>();
+  const countGoals=(pid:number,ids:Set<number>)=>(goalsByPlayer.get(pid)??[]).filter(g=>ids.has(g.match_id)).length;
+  const countAssists=(pid:number,ids:Set<number>)=>(assistsByPlayer.get(pid)??[]).filter(g=>ids.has(g.match_id)).length;
 
   // Long-awaited opponent and stadium firsts.
   const away=leagueH2h.filter(m=>m.venue_type==='A'),lastAwayWin=[...away].reverse().find(m=>m.result==='Won');
@@ -100,6 +104,24 @@ export default function StatPack(){
     if(l>=5&&l>=maxL){const last=[...samples].reverse().find(x=>x.l>=l);add('Historic Start · Defeats',`Leeds have lost ${l} of their opening ${stage} ${scope.name} matches, their ${l>maxL?'most':'joint-most'} at this stage${last?` and a total last matched in ${last.s}`:''}.`,96,`${samples.length} previous seasons compared`,'season-stage-defeats')}
     if(ga<=minGA&&stage>=5)add('Defensive Start',`Leeds have conceded ${ga} goals through their opening ${stage} ${scope.name} matches, the fewest at this stage of any campaign in the recorded archive.`,96,`${samples.length} previous seasons compared`,'season-stage-defence');
     const lastGF=[...samples].reverse().find(x=>x.gf>=gf);if(gf>=stage*2&&lastGF)add('Scoring Pace',`Leeds have scored ${gf} goals through ${stage} ${scope.name} matches; the last Leeds side with at least as many at this stage was ${lastGF.s} (${lastGF.gf}).`,90,`${samples.length} previous seasons compared`,'season-stage-scoring');
+   }
+  }
+
+  // Player contribution share and top-flight pacing. Ten team matches unlocks serious historical comparison.
+  if(current?.season){
+   const now=chron.filter(m=>m.season===current.season&&topFlight(m)),stage=now.length;
+   if(stage>=10){
+    const nowIds=new Set(now.map(m=>m.match_id)),teamGoals=now.reduce((s,m)=>s+m.leeds_score,0);
+    const priorSeasons=Array.from(new Set(chron.filter(m=>topFlight(m)&&seasonStart(m.season)<seasonStart(current.season)).map(m=>m.season).filter((s):s is string=>Boolean(s))));
+    const historic=priorSeasons.map(s=>{const ms=chron.filter(m=>m.season===s&&topFlight(m)).slice(0,stage);if(ms.length!==stage)return null;const ids=new Set(ms.map(m=>m.match_id)),tg=ms.reduce((a,m)=>a+m.leeds_score,0);let bestGoals:{pid:number;n:number}|null=null,bestGI:{pid:number;n:number;share:number}|null=null;for(const p of players){const g=countGoals(p.player_id,ids),a=countAssists(p.player_id,ids),gi=g+a,share=tg?gi/tg:0;if(!bestGoals||g>bestGoals.n)bestGoals={pid:p.player_id,n:g};if(!bestGI||share>bestGI.share)bestGI={pid:p.player_id,n:gi,share}}return{s,ms,tg,bestGoals,bestGI}}).filter((x):x is NonNullable<typeof x>=>Boolean(x));
+    for(const pid of activeIds){
+     const g=countGoals(pid,nowIds),a=countAssists(pid,nowIds),gi=g+a,name=names.get(pid)??'A Leeds player';
+     if(g>=4){const prior=[...historic].reverse().find(x=>x.bestGoals&&x.bestGoals.n>=g);if(prior?.bestGoals)add('Player · Top-Flight Pace',`${name} has scored ${g} goals through Leeds' opening ${stage} top-flight matches of ${current.season}. No Leeds player had scored more at this stage after ${prior.s}, when ${names.get(prior.bestGoals.pid)??'the leading scorer'} had ${prior.bestGoals.n}.`,98,`${historic.length} previous top-flight seasons compared after exactly ${stage} team matches`,'player-top-flight-pace')}
+     if(teamGoals>0&&gi>=4){const share=gi/teamGoals,prior=[...historic].reverse().find(x=>x.bestGI&&x.bestGI.share>=share);if(share>=.25&&prior?.bestGI)add('Player · Goal Contribution Share',`${name} has been directly involved in ${Math.round(share*100)}% of Leeds' recorded top-flight goals this season (${g} goals, ${a} recorded assists). That is the highest share by a Leeds player at this ${stage}-match stage since ${names.get(prior.bestGI.pid)??'the leading contributor'} in ${prior.s} (${Math.round(prior.bestGI.share*100)}%).`,94,`${historic.length} previous top-flight seasons compared at the same team-match stage · assist comparison uses recorded assist data`,'player-contribution-share','B')}
+    }
+    // Model one-goal and brace possibilities in the upcoming match, then search the equivalent next-match stage.
+    const nextStage=stage+1,scenarioSeasons=priorSeasons.map(s=>{const ms=chron.filter(m=>m.season===s&&topFlight(m)).slice(0,nextStage);if(ms.length!==nextStage)return null;const ids=new Set(ms.map(m=>m.match_id));let best:{pid:number;n:number}|null=null;for(const p of players){const n=countGoals(p.player_id,ids);if(!best||n>best.n)best={pid:p.player_id,n}}return{s,best}}).filter((x):x is NonNullable<typeof x>=>Boolean(x));
+    for(const pid of activeIds){const g=countGoals(pid,nowIds),name=names.get(pid)??'A Leeds player';if(g<3)continue;for(const extra of[1,2]){const target=g+extra,prior=[...scenarioSeasons].reverse().find(x=>x.best&&x.best.n>=target);if(!prior?.best)continue;const action=extra===1?'a goal':'a brace';add(`Player · ${extra===1?'Next-Game Scoring Landmark':'Brace Opportunity'}`,`${action[0].toUpperCase()+action.slice(1)} against ${opponent} would take ${name} to ${target} top-flight goals this season through Leeds' opening ${nextStage} matches. The last Leeds player with at least ${target} at that stage was ${names.get(prior.best.pid)??'another Leeds player'} in ${prior.s} (${prior.best.n}).`,extra===2?97:95,`${scenarioSeasons.length} previous top-flight seasons compared after exactly ${nextStage} team matches`,'player-next-game-pace')}}
    }
   }
 
