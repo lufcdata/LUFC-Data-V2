@@ -1,5 +1,6 @@
 import{matchesAtPhysicalStadium}from'./stadiumIdentity';
 import{curateFixtureResearch}from'./statPackResearchQuality';
+import{isYorkshireDerbyOpponent,yorkshireDerbyMatches}from'./statPackYorkshireDerby';
 
 export type FixtureResearchMatch={
  match_id:number;
@@ -56,6 +57,17 @@ export function researchUpcomingFixture(
  const currentSeason=chron.filter(m=>m.season===fixture.season&&scope(m));
  const currentVenue=currentSeason.filter(venue);
  const manager=fixture.manager??[...chron].reverse().find(m=>m.leeds_manager)?.leeds_manager??null;
+
+ // Signed-off Yorkshire derby context. This intentionally spans all recorded
+ // competitive matches against the explicit derby club list; it is contextual
+ // Grade B evidence rather than a record/first/since claim.
+ if(isYorkshireDerbyOpponent(fixture.opponent)){
+  const derbies=yorkshireDerbyMatches(chron);
+  if(derbies.length){
+   const r=wdl(derbies),gf=derbies.reduce((sum,m)=>sum+m.leeds_score,0),ga=derbies.reduce((sum,m)=>sum+m.opponent_score,0);
+   add('Yorkshire Derbies',`Ahead of another Yorkshire derby against ${fixture.opponent}, Leeds' recorded competitive record in Yorkshire derbies is ${r.w} wins, ${r.d} draws and ${r.l} defeats from ${derbies.length} matches, with ${gf} goals scored and ${ga} conceded.`,78,`${derbies.length} recorded competitive matches checked; opponents restricted to the signed-off Yorkshire derby club list`,'yorkshire-derby-record','B');
+  }
+ }
 
  // Back-to-back (and longer) home/away wins under the current manager.
  if(manager){
