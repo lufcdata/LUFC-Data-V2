@@ -118,11 +118,12 @@ export function researchUpcomingFixture(
   else if(lastAtTarget)add(`Opponent · ${fixture.venue==='H'?'Home':'Away'} Winning Sequence`,`Victory over ${fixture.opponent} would give Leeds ${target} consecutive ${fixture.competition} wins ${where} against them, a sequence they last reached in ${lastAtTarget.match_date.slice(0,4)}.`,96,`${venueH2h.length} ${fixture.competition} ${where} meetings with ${fixture.opponent} checked`,'opponent-venue-run');
  }
 
- // Venue-conditioned unbeaten history against the upcoming opponent. A draw or win
- // in the upcoming fixture extends the run; only record/since comparators earn Grade A.
+ // Venue-conditioned unbeaten history against the upcoming opponent. Suppress the
+ // weaker unbeaten story when it is exactly the same run as the winning sequence;
+ // retain it when the unbeaten run genuinely extends beyond the winning run.
  let venueUnbeatenRun=0;
  for(let i=venueH2h.length-1;i>=0&&venueH2h[i].result!=='Lost';i--)venueUnbeatenRun++;
- if(venueUnbeatenRun>=2){
+ if(venueUnbeatenRun>=2&&venueUnbeatenRun>venueWinRun){
   const target=venueUnbeatenRun+1;
   let historicalMax=0,r=0,lastAtTarget:FixtureResearchMatch|null=null;
   for(const m of venueH2h.slice(0,-venueUnbeatenRun)){if(m.result!=='Lost'){r++;historicalMax=Math.max(historicalMax,r);if(r>=target)lastAtTarget=m}else r=0}
