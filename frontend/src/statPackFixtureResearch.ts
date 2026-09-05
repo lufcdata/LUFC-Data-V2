@@ -1,4 +1,5 @@
 import{matchesAtPhysicalStadium}from'./stadiumIdentity';
+import{curateFixtureResearch}from'./statPackResearchQuality';
 
 export type FixtureResearchMatch={
  match_id:number;
@@ -341,5 +342,5 @@ export function researchUpcomingFixture(
   if(cleanWins>=Math.ceil(recentWins.length*.6))add('Clean Sheets · Winning Formula',`Leeds have kept a clean sheet in ${cleanWins} of their ${recentWins.length} wins across the last ${recentOpponent.length} ${fixture.competition} meetings with ${fixture.opponent}.`,86,`${recentOpponent.length} recent opponent meetings checked`,'clean-sheet-win-correlation','B');
  }
 
- return out.sort((a,b)=>b.priority-a.priority);
+ return curateFixtureResearch(out);
 }
