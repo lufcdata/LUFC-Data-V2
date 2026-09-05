@@ -127,5 +127,42 @@ export function researchUpcomingFixture(
   }
  }
 
+ // Historical significance for first-goal behaviour. Compare the current season
+ // at the exact same number of first-goal opportunities with every prior season.
+ const priorSeasons=Array.from(new Set(scoped.filter(m=>seasonStart(m.season)<seasonStart(fixture.season)).map(m=>m.season).filter((s):s is string=>Boolean(s))));
+ for(const state of ['Scored','Conceded'] as const){
+  const now=currentSeason.filter(m=>m.first_goal===state);
+  if(now.length>=4){
+   const nr=wdl(now),n=now.length;
+   const nowSuccess=state==='Scored'?nr.w:nr.w+nr.d;
+   const samples=priorSeasons.map(s=>{const x=scoped.filter(m=>m.season===s&&m.first_goal===state).slice(0,n);const r=wdl(x);return{s,x,success:state==='Scored'?r.w:r.w+r.d}}).filter(v=>v.x.length===n);
+   if(samples.length>=5){
+    const best=Math.max(...samples.map(v=>v.success));
+    const latestEqual=[...samples].reverse().find(v=>v.success>=nowSuccess);
+    if(nowSuccess>best){
+     add(`First Goal · Season ${state==='Scored'?'Conversion':'Recovery'} Record`,state==='Scored'?`Leeds have won ${nowSuccess} of the ${n} ${fixture.competition} matches in which they have scored first this season, their best recorded return through the same number of scoring-first matches.`:`Leeds have avoided defeat in ${nowSuccess} of the ${n} ${fixture.competition} matches in which they have conceded first this season, their best recorded recovery return through the same number of conceding-first matches.`,99,`${samples.length} previous seasons compared after exactly ${n} ${state==='Scored'?'scoring-first':'conceding-first'} matches`,`first-goal-season-history`);
+    }else if(latestEqual&&latestEqual.s!==fixture.season&&nowSuccess>=Math.ceil(n*.75)){
+     add(`First Goal · Season ${state==='Scored'?'Conversion':'Recovery'} Since`,state==='Scored'?`Leeds have won ${nowSuccess} of the ${n} ${fixture.competition} matches in which they have scored first this season, their best return through the same number of scoring-first matches since ${latestEqual.s}.`:`Leeds have avoided defeat in ${nowSuccess} of the ${n} ${fixture.competition} matches in which they have conceded first this season, their best recovery return through the same number of conceding-first matches since ${latestEqual.s}.`,96,`${samples.length} previous seasons compared after exactly ${n} ${state==='Scored'?'scoring-first':'conceding-first'} matches`,`first-goal-season-history`);
+    }
+   }
+  }
+
+  // Opponent-specific unbeaten/winning sequence conditioned on who scored first.
+  const h2h=scoped.filter(m=>m.opponent===fixture.opponent&&m.first_goal===state);
+  let run=0;
+  const qualifies=(m:FixtureResearchMatch)=>state==='Scored'?m.result==='Won':m.result!=='Lost';
+  for(let i=h2h.length-1;i>=0&&qualifies(h2h[i]);i--)run++;
+  if(run>=2){
+   const target=run+1;
+   let historicalMax=0,r=0,lastTarget:FixtureResearchMatch|null=null;
+   for(const m of h2h.slice(0,-run)){if(qualifies(m)){r++;historicalMax=Math.max(historicalMax,r);if(r>=target)lastTarget=m}else r=0}
+   if(target>historicalMax){
+    add(`First Goal · ${fixture.opponent} Sequence`,state==='Scored'?`If Leeds score first against ${fixture.opponent} and win, it would be their ${target}th consecutive ${fixture.competition} victory against them after opening the scoring, the longest such sequence in the recorded archive.`:`If Leeds concede first against ${fixture.opponent} but avoid defeat, it would be the ${target}th consecutive ${fixture.competition} meeting in which they have recovered after falling behind, the longest such sequence in the recorded archive.`,98,`${h2h.length} ${fixture.competition} meetings with ${fixture.opponent} where first-goal state=${state} checked`,`first-goal-opponent-history`);
+   }else if(lastTarget){
+    add(`First Goal · ${fixture.opponent} Sequence`,state==='Scored'?`If Leeds score first against ${fixture.opponent} and win, it would be their ${target}th consecutive ${fixture.competition} victory against them after opening the scoring, a sequence last reached in ${lastTarget.match_date.slice(0,4)}.`:`If Leeds concede first against ${fixture.opponent} but avoid defeat, it would be the ${target}th consecutive ${fixture.competition} meeting in which they have recovered after falling behind, a sequence last reached in ${lastTarget.match_date.slice(0,4)}.`,95,`${h2h.length} ${fixture.competition} meetings with ${fixture.opponent} where first-goal state=${state} checked`,`first-goal-opponent-history`);
+   }
+  }
+ }
+
  return out.sort((a,b)=>b.priority-a.priority);
 }
