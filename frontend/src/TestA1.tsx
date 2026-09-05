@@ -44,9 +44,9 @@ const metricStyles=`
 .test-a1-standing-head{height:22px!important}
 .test-a1-standing-head span:last-child{text-align:center!important}
 .test-a1-standing-row{min-height:36px!important}
-.test-a1-goals-standing{grid-column:2!important;grid-row:4!important}
+.test-a1-goals-standing{grid-column:2!important;grid-row:3!important;transform:translateY(calc(100% + 10px));z-index:1}
 .test-a1-timeline{grid-row:5!important}
-@media(max-width:1050px){.test-a1-goals-standing,.test-a1-timeline{grid-row:auto!important}}
+@media(max-width:1050px){.test-a1-goals-standing,.test-a1-timeline{grid-row:auto!important}.test-a1-goals-standing{transform:none}}
 @media(max-width:700px){.test-a1-stats .test-a1-stat{min-height:41px!important}.test-a1-stats .test-a1-stat .metric-label{font-size:11px!important}.test-a1-stats .test-a1-stat-actions{grid-template-columns:52px 48px;column-gap:16px;flex-basis:116px}.test-a1-stats .test-a1-stat .test-a1-stat-value{width:52px!important;font-size:9px!important}.test-a1-stats .test-a1-stat .test-a1-stat-rank{width:48px;height:22px;font-size:7px}.test-a1-standing header{grid-template-columns:minmax(0,1fr) 48px}.test-a1-standing header>b{width:48px!important;height:22px!important;font-size:7px!important}.test-a1-standing-head,.test-a1-standing-row{grid-template-columns:28px minmax(0,1fr) 48px!important}}
 `;
 export default function TestA1(){
