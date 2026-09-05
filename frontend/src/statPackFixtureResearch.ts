@@ -33,7 +33,7 @@ export type FixtureResearchFinding={
 
 const won=(m:FixtureResearchMatch)=>m.result==='Won';
 const seasonStart=(s:string|null)=>Number((s??'0').slice(0,4))||0;
-const wdl=(xs:FixtureResearchMatch[])=>({w:xs.filter(m=>m.result==='Won').length,d:xs.filter(m=>m.result==='Drawn').length,l:xs.filter(m=>m.result==='Lost').length});
+const wdl=(xs:FixtureResearchMatch[])=>({w:xs.filter(m=>m.result==='Won').length,d:xs.filter(m=>m.result==='Draw').length,l:xs.filter(m=>m.result==='Lost').length});
 const pct=(n:number,d:number)=>d?Math.round(n*100/d):0;
 
 /**
