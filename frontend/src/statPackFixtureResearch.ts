@@ -164,5 +164,35 @@ export function researchUpcomingFixture(
   }
  }
 
+ // Clean-sheet intelligence: exact-stage season comparison plus opponent-specific
+ // sequence and win correlation. This uses final scores only, so it is archive-safe.
+ if(currentSeason.length>=5){
+  const stage=currentSeason.length,clean=currentSeason.filter(m=>m.opponent_score===0).length;
+  const samples=priorSeasons.map(s=>{const x=scoped.filter(m=>m.season===s).slice(0,stage);return{s,x,clean:x.filter(m=>m.opponent_score===0).length}}).filter(v=>v.x.length===stage);
+  if(samples.length>=5&&clean>=2){
+   const best=Math.max(...samples.map(v=>v.clean));
+   const latest=[...samples].reverse().find(v=>v.clean>=clean);
+   if(clean>best)add('Clean Sheets · Historic Start',`Leeds have kept ${clean} clean sheets through their opening ${stage} ${fixture.competition} matches of ${fixture.season}, their most at this stage of a campaign in the recorded archive.`,98,`${samples.length} previous seasons compared after exactly ${stage} matches`,'clean-sheet-season-history');
+   else if(latest&&clean>=Math.ceil(stage*.3))add('Clean Sheets · At This Stage',`Leeds have kept ${clean} clean sheets through their opening ${stage} ${fixture.competition} matches of ${fixture.season}. The last Leeds side with at least as many at this stage was ${latest.s}.`,94,`${samples.length} previous seasons compared after exactly ${stage} matches`,'clean-sheet-season-history');
+  }
+ }
+
+ const opponentMatches=scoped.filter(m=>m.opponent===fixture.opponent);
+ let cleanRun=0;
+ for(let i=opponentMatches.length-1;i>=0&&opponentMatches[i].opponent_score===0;i--)cleanRun++;
+ if(cleanRun>=1){
+  const target=cleanRun+1;
+  let max=0,r=0,lastTarget:FixtureResearchMatch|null=null;
+  for(const m of opponentMatches.slice(0,-cleanRun)){if(m.opponent_score===0){r++;max=Math.max(max,r);if(r>=target)lastTarget=m}else r=0}
+  if(target>max)add('Clean Sheets · Opponent Sequence',`A clean sheet against ${fixture.opponent} would be Leeds' ${target}th consecutive ${fixture.competition} shutout against them, the longest such sequence in the recorded archive.`,97,`${opponentMatches.length} ${fixture.competition} meetings with ${fixture.opponent} checked`,'clean-sheet-opponent-history');
+  else if(lastTarget)add('Clean Sheets · Opponent Sequence',`A clean sheet against ${fixture.opponent} would be Leeds' ${target}th consecutive ${fixture.competition} shutout against them, a sequence last reached in ${lastTarget.match_date.slice(0,4)}.`,94,`${opponentMatches.length} ${fixture.competition} meetings with ${fixture.opponent} checked`,'clean-sheet-opponent-history');
+ }
+
+ const recentOpponent=opponentMatches.slice(-10),recentWins=recentOpponent.filter(m=>m.result==='Won');
+ if(recentOpponent.length>=6&&recentWins.length>=3){
+  const cleanWins=recentWins.filter(m=>m.opponent_score===0).length;
+  if(cleanWins>=Math.ceil(recentWins.length*.6))add('Clean Sheets · Winning Formula',`Leeds have kept a clean sheet in ${cleanWins} of their ${recentWins.length} wins across the last ${recentOpponent.length} ${fixture.competition} meetings with ${fixture.opponent}.`,86,`${recentOpponent.length} recent opponent meetings checked`,'clean-sheet-win-correlation','B');
+ }
+
  return out.sort((a,b)=>b.priority-a.priority);
 }
