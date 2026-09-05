@@ -155,7 +155,7 @@ export default function StatPack(){
    if(current){const cy=yr(current.match_date),thisYear=own.filter(m=>yr(m.match_date)===cy),unbeaten=tail(thisYear,m=>m.result!=='Lost');if(unbeaten>=4){const target=unbeaten+1;let prior:{name:string;y:number}|null=null;for(const n of managers){for(let y=cy-1;y>=1920;y--){const xs=chron.filter(m=>m.leeds_manager===n&&league(m)&&yr(m.match_date)===y);if(tail(xs,m=>m.result!=='Lost')>=target){if(!prior||y>prior.y)prior={name:n,y};break}}}add('Manager · Calendar Year',`${manager} can make it ${target} consecutive league matches unbeaten in ${cy}. ${prior?`The last Leeds manager to finish a calendar-year sequence of at least ${target} was ${prior.name} in ${prior.y}.`:`No Leeds manager in the recorded archive has produced that calendar-year sequence.`}`,98,evidence(thisYear),'manager-calendar')}}
   }
 
-  // Manager versus upcoming opponent: exact-stage win pace and last Leeds-manager victory.
+  // Manager versus upcoming opponent: exact-stage win pace, last victory and historical W/L rankings.
   if(manager){
    const ownVs=chron.filter(m=>m.leeds_manager===manager&&m.opponent===opponent&&league(m));
    const managerNames=Array.from(new Set(chron.map(m=>m.leeds_manager).filter((n):n is string=>Boolean(n))));
@@ -164,6 +164,25 @@ export default function StatPack(){
    if(ownVs.length>=1&&samples.length>=2){const maxWins=Math.max(...samples.map(x=>x.wins));if(targetWins>maxWins)add('Manager · Opponent Record',`Victory over ${opponent} would give ${manager} ${targetWins} league win${targetWins===1?'':'s'} from his first ${nextN} meetings with them as Leeds manager, more than any previous Leeds manager through the same stage in the recorded archive.`,100,`${samples.length} previous Leeds managers compared after exactly ${nextN} league meetings with ${opponent}`,'manager-opponent');else{const prior=[...samples].reverse().find(x=>x.wins>=targetWins);if(targetWins>=2&&prior)add('Manager · Opponent Pace',`Victory over ${opponent} would give ${manager} ${targetWins} league wins from his first ${nextN} meetings with them as Leeds manager. The last Leeds manager with at least ${targetWins} wins through the same stage was ${prior.name}.`,96,`${samples.length} previous Leeds managers compared after exactly ${nextN} league meetings with ${opponent}`,'manager-opponent')}}
    const lastOtherWin=[...chron].reverse().find(m=>m.opponent===opponent&&league(m)&&m.result==='Won'&&m.leeds_manager&&m.leeds_manager!==manager);
    if(currentWins===0&&lastOtherWin){const gapYears=yr(current?.match_date??lastOtherWin.match_date)-yr(lastOtherWin.match_date),grade: 'A'|'B'=gapYears>=5?'A':'B';add('Manager · First Win Against Opponent',`Victory over ${opponent} would be ${manager}'s first league win against them as Leeds manager. The last Leeds manager to beat ${opponent} in the league was ${lastOtherWin.leeds_manager} in ${fmt(lastOtherWin.match_date)}.`,gapYears>=5?98:72,evidence(leagueH2h),'manager-opponent-first',grade)}
+
+   const ownPl=chron.filter(m=>m.leeds_manager===manager&&m.opponent===opponent&&m.competition==='Premier League');
+   if(ownPl.length){
+    const currentLosses=ownPl.filter(m=>m.result==='Lost').length,targetLosses=currentLosses+1;
+    const lossBoard=managerNames.map(n=>({name:n,losses:chron.filter(m=>m.leeds_manager===n&&m.opponent===opponent&&m.competition==='Premier League'&&m.result==='Lost').length})).filter(x=>x.losses>0).sort((a,b)=>b.losses-a.losses||a.name.localeCompare(b.name));
+    const moreAfter=lossBoard.filter(x=>x.name!==manager&&x.losses>targetLosses),equalAfter=lossBoard.filter(x=>x.name!==manager&&x.losses===targetLosses),leader=lossBoard.find(x=>x.name!==manager);
+    if(targetLosses>=3&&leader){
+     if(moreAfter.length===0){const peers=equalAfter.slice(0,3).map(x=>x.name).join(', ');add('Manager · Opponent Defeat Record',`Defeat to ${opponent} would take ${manager} to ${targetLosses} Premier League losses against them as Leeds manager, ${equalAfter.length?'joint-':''}the most by any Leeds manager in the competition${peers?` alongside ${peers}`:''}.`,99,`${lossBoard.length} Leeds managers with a Premier League defeat against ${opponent} compared`,'manager-opponent-loss-rank')}
+     else if(moreAfter.length<=2){add('Manager · Opponent Defeat Ranking',`Defeat to ${opponent} would take ${manager} to ${targetLosses} Premier League losses against them as Leeds manager; only ${moreAfter.length} Leeds manager${moreAfter.length===1?' has':'s have'} lost more often to ${opponent} in the competition, led by ${moreAfter[0].name} (${moreAfter[0].losses}).`,96,`${lossBoard.length} Leeds managers compared`,'manager-opponent-loss-rank')}
+    }
+
+    const currentPlWins=ownPl.filter(m=>m.result==='Won').length,targetPlWins=currentPlWins+1;
+    const winBoard=managerNames.map(n=>({name:n,wins:chron.filter(m=>m.leeds_manager===n&&m.opponent===opponent&&m.competition==='Premier League'&&m.result==='Won').length})).filter(x=>x.wins>0).sort((a,b)=>b.wins-a.wins||a.name.localeCompare(b.name));
+    const moreWins=winBoard.filter(x=>x.name!==manager&&x.wins>targetPlWins),equalWins=winBoard.filter(x=>x.name!==manager&&x.wins===targetPlWins);
+    if(targetPlWins>=2&&winBoard.length){
+     if(moreWins.length===0){const peers=equalWins.slice(0,3).map(x=>x.name).join(', ');add('Manager · Opponent Win Record',`Victory over ${opponent} would take ${manager} to ${targetPlWins} Premier League wins against them as Leeds manager, ${equalWins.length?'joint-':''}the most by any Leeds manager in the competition${peers?` alongside ${peers}`:''}.`,99,`${winBoard.length} Leeds managers with a Premier League win against ${opponent} compared`,'manager-opponent-win-rank')}
+     else if(moreWins.length<=2){add('Manager · Opponent Win Ranking',`Victory over ${opponent} would give ${manager} ${targetPlWins} Premier League wins against them as Leeds manager; only ${moreWins.length} Leeds manager${moreWins.length===1?' has':'s have'} recorded more, led by ${moreWins[0].name} (${moreWins[0].wins}).`,95,`${winBoard.length} Leeds managers compared`,'manager-opponent-win-rank')}
+    }
+   }
   }
 
   // Correct club-wide calendar-month comparator: search every Leeds player, not only the current player.
