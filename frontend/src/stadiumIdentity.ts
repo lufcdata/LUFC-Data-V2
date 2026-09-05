@@ -29,6 +29,15 @@ export function samePhysicalStadium(a:string|null|undefined,b:string|null|undefi
  return Boolean(ak&&bk&&ak===bk);
 }
 
+export function matchesAtPhysicalStadium<T extends {stadium:string|null|undefined}>(
+ matches:readonly T[],
+ stadium:string|null|undefined,
+):T[]{
+ const key=canonicalStadiumKey(stadium);
+ if(!key)return [];
+ return matches.filter(match=>canonicalStadiumKey(match.stadium)===key);
+}
+
 export function stadiumAliases():Readonly<Record<string,string>>{
  return STADIUM_ALIASES;
 }
