@@ -10,6 +10,7 @@ export type FixtureResearchMatch={
  result:string;
  stadium:string|null;
  leeds_manager:string|null;
+ first_goal?:string|null;
 };
 
 export type UpcomingFixtureContext={
@@ -32,6 +33,8 @@ export type FixtureResearchFinding={
 
 const won=(m:FixtureResearchMatch)=>m.result==='Won';
 const seasonStart=(s:string|null)=>Number((s??'0').slice(0,4))||0;
+const wdl=(xs:FixtureResearchMatch[])=>({w:xs.filter(m=>m.result==='Won').length,d:xs.filter(m=>m.result==='Drawn').length,l:xs.filter(m=>m.result==='Lost').length});
+const pct=(n:number,d:number)=>d?Math.round(n*100/d):0;
 
 /**
  * Fixture-aware research families. These deliberately require authoritative
@@ -95,6 +98,32 @@ export function researchUpcomingFixture(
    for(const m of atGround.slice(0,-run)){if(won(m)){r++;historicalMax=Math.max(historicalMax,r);if(r>=target)lastAtTarget=m}else r=0}
    if(target>historicalMax)add('Stadium · Winning Sequence',`Victory over ${fixture.opponent} would give Leeds ${target} consecutive ${fixture.competition} wins at ${fixture.stadium}, their longest recorded winning sequence at the ground.`,98,`${atGround.length} previous ${fixture.competition} matches at ${fixture.stadium} checked`,'stadium-run');
    else if(lastAtTarget)add('Stadium · Winning Sequence',`Victory over ${fixture.opponent} would give Leeds ${target} consecutive ${fixture.competition} wins at ${fixture.stadium}, a sequence they last reached there in ${lastAtTarget.match_date.slice(0,4)}.`,95,`${atGround.length} previous ${fixture.competition} matches at ${fixture.stadium} checked`,'stadium-run');
+  }
+ }
+
+ // First-goal outcome intelligence: recent form plus opponent-specific response.
+ // This is descriptive context, so it remains Grade B until a separate historical
+ // significance comparator proves a record/first/since angle.
+ const scoped=chron.filter(scope);
+ for(const state of ['Scored','Conceded'] as const){
+  const eligible=scoped.filter(m=>m.first_goal===state);
+  const recent=eligible.slice(-20);
+  if(recent.length>=10){
+   const r=wdl(recent);
+   const rate=state==='Scored'?pct(r.w,recent.length):pct(r.d+r.w,recent.length);
+   if((state==='Scored'&&rate>=65)||(state==='Conceded'&&rate>=35)){
+    const action=state==='Scored'?'when scoring first':'after conceding first';
+    add(`First Goal · ${state==='Scored'?'Protection':'Recovery'}`,`Leeds have ${state==='Scored'?'won':'avoided defeat in'} ${state==='Scored'?r.w:r.w+r.d} of their last ${recent.length} ${fixture.competition} matches ${action} (${r.w}W ${r.d}D ${r.l}L).`,84,`${recent.length} most recent ${fixture.competition} matches where Leeds ${state==='Scored'?'scored':'conceded'} first checked`,'first-goal-recent','B');
+   }
+  }
+  const vsOpponent=eligible.filter(m=>m.opponent===fixture.opponent).slice(-12);
+  if(vsOpponent.length>=5){
+   const r=wdl(vsOpponent);
+   const strong=state==='Scored'?r.l<=1:r.w+r.d>=Math.ceil(vsOpponent.length/2);
+   if(strong){
+    const action=state==='Scored'?'after scoring first':'after conceding first';
+    add(`First Goal · ${fixture.opponent}`,`In their last ${vsOpponent.length} ${fixture.competition} meetings with ${fixture.opponent} in which Leeds ${state==='Scored'?'scored':'conceded'} first, Leeds have a record of ${r.w} wins, ${r.d} draws and ${r.l} defeats ${action}.`,86,`${vsOpponent.length} most recent opponent meetings with first-goal state=${state}`,'first-goal-opponent','B');
+   }
   }
  }
 
