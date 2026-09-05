@@ -36,5 +36,5 @@
 }
 
 /* Leeds Career Numbers: enforce the intended two-colour palette only. */
-.test-a1-summary .test-a1-season-apps{background:#2F91ED!important;opacity:1!important}
-.test-a1-summary .test-a1-season-goals{background:#F5DB18!important;opacity:1!important}
+.test-a1-summary .test-a1-season-apps{background:#2F91ED!important;opacity:1!important;z-index:1!important}
+.test-a1-summary .test-a1-season-goals{background:#F5DB18!important;opacity:1!important;z-index:2!important}
