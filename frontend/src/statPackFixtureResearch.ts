@@ -132,6 +132,19 @@ export function researchUpcomingFixture(
   else if(lastAtTarget)add(`Opponent · ${fixture.venue==='H'?'Home':'Away'} Unbeaten Sequence`,`Avoiding defeat against ${fixture.opponent} would make it ${target} consecutive ${fixture.competition} meetings unbeaten ${where} against them, a sequence they last reached in ${lastAtTarget.match_date.slice(0,4)}.`,96,`${venueH2h.length} ${fixture.competition} ${where} meetings with ${fixture.opponent} checked`,'opponent-venue-unbeaten');
  }
 
+ // Negative exact-context risk: only promote a losing sequence once Leeds have
+ // already lost at least twice in succession in this opponent/competition/venue scope.
+ let venueLossRun=0;
+ for(let i=venueH2h.length-1;i>=0&&venueH2h[i].result==='Lost';i--)venueLossRun++;
+ if(venueLossRun>=2){
+  const target=venueLossRun+1;
+  let historicalMax=0,r=0,lastAtTarget:FixtureResearchMatch|null=null;
+  for(const m of venueH2h.slice(0,-venueLossRun)){if(m.result==='Lost'){r++;historicalMax=Math.max(historicalMax,r);if(r>=target)lastAtTarget=m}else r=0}
+  const where=fixture.venue==='H'?'at home':'away';
+  if(target>historicalMax)add(`Opponent · ${fixture.venue==='H'?'Home':'Away'} Losing Sequence`,`Leeds are looking to avoid a ${target}th consecutive ${fixture.competition} defeat ${where} against ${fixture.opponent}; another loss would create their longest recorded losing sequence in this fixture at that venue.`,99,`${venueH2h.length} ${fixture.competition} ${where} meetings with ${fixture.opponent} checked; current losing run=${venueLossRun}`,'opponent-venue-losing-run');
+  else if(lastAtTarget)add(`Opponent · ${fixture.venue==='H'?'Home':'Away'} Losing Sequence`,`Leeds are looking to avoid a ${target}th consecutive ${fixture.competition} defeat ${where} against ${fixture.opponent}, a losing sequence they last reached in ${lastAtTarget.match_date.slice(0,4)}.`,96,`${venueH2h.length} ${fixture.competition} ${where} meetings with ${fixture.opponent} checked; current losing run=${venueLossRun}`,'opponent-venue-losing-run');
+ }
+
  // Venue-conditioned scoring history against the upcoming opponent. The machine
  // only promotes this when scoring in the next fixture creates a record or since comparator.
  let venueScoringRun=0;
