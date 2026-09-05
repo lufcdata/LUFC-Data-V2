@@ -131,6 +131,19 @@ export function researchUpcomingFixture(
   else if(lastAtTarget)add(`Opponent · ${fixture.venue==='H'?'Home':'Away'} Unbeaten Sequence`,`Avoiding defeat against ${fixture.opponent} would make it ${target} consecutive ${fixture.competition} meetings unbeaten ${where} against them, a sequence they last reached in ${lastAtTarget.match_date.slice(0,4)}.`,96,`${venueH2h.length} ${fixture.competition} ${where} meetings with ${fixture.opponent} checked`,'opponent-venue-unbeaten');
  }
 
+ // Venue-conditioned scoring history against the upcoming opponent. The machine
+ // only promotes this when scoring in the next fixture creates a record or since comparator.
+ let venueScoringRun=0;
+ for(let i=venueH2h.length-1;i>=0&&venueH2h[i].leeds_score>0;i--)venueScoringRun++;
+ if(venueScoringRun>=2){
+  const target=venueScoringRun+1;
+  let historicalMax=0,r=0,lastAtTarget:FixtureResearchMatch|null=null;
+  for(const m of venueH2h.slice(0,-venueScoringRun)){if(m.leeds_score>0){r++;historicalMax=Math.max(historicalMax,r);if(r>=target)lastAtTarget=m}else r=0}
+  const where=fixture.venue==='H'?'at home':'away';
+  if(target>historicalMax)add(`Opponent · ${fixture.venue==='H'?'Home':'Away'} Scoring Sequence`,`Scoring against ${fixture.opponent} would make it ${target} consecutive ${fixture.competition} meetings in which Leeds have found the net ${where} against them, their longest recorded scoring sequence in this fixture at that venue.`,98,`${venueH2h.length} ${fixture.competition} ${where} meetings with ${fixture.opponent} checked`,'opponent-venue-scoring');
+  else if(lastAtTarget)add(`Opponent · ${fixture.venue==='H'?'Home':'Away'} Scoring Sequence`,`Scoring against ${fixture.opponent} would make it ${target} consecutive ${fixture.competition} meetings in which Leeds have found the net ${where} against them, a sequence they last reached in ${lastAtTarget.match_date.slice(0,4)}.`,95,`${venueH2h.length} ${fixture.competition} ${where} meetings with ${fixture.opponent} checked`,'opponent-venue-scoring');
+ }
+
  // Venue-conditioned clean-sheet history against the upcoming opponent.
  // This is separate from the all-venue opponent sequence below: the fixture venue
  // is part of the trigger, so home and away shutout histories can never contaminate each other.
