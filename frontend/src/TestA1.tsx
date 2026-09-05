@@ -29,7 +29,7 @@ const metricStyles=`
 .test-a1-stats .test-a1-stat .test-a1-stat-value{min-width:44px!important;margin:0!important;display:block!important;background:transparent!important;color:#f5f7fb!important;font-family:'Space Mono',monospace!important;font-size:10px!important;font-weight:700!important;line-height:1!important;text-align:right!important}
 .test-a1-stats .test-a1-stat .test-a1-stat-rank{min-width:35px;height:22px;padding:0 8px;border:1px solid #46536e;border-radius:999px;display:grid;place-items:center;background:#20283b;color:#f4f6fb;font-family:'DM Mono',monospace;font-size:8px;font-weight:600;line-height:1;white-space:nowrap}
 .test-a1-stats .test-a1-stat .test-a1-stat-rank.rank-1{background:#E2C319;border-color:#E2C319;color:#fff}
-.test-a1-stats .test-a1-stat .test-a1-stat-rank.rank-2{background:#DDE2EA;border-color:#DDE2EA;color:#202536}
+.test-a1-stats .test-a1-stat .test-a1-stat-rank.rank-2{background:#DDE2EA;border-color:#DDE2EA;color:#202536!important}
 .test-a1-stats .test-a1-stat .test-a1-stat-rank.rank-3{background:#B8794A;border-color:#B8794A;color:#fff}
 @media(max-width:700px){.test-a1-stats .test-a1-stat{min-height:41px!important}.test-a1-stats .test-a1-stat .metric-label{font-size:11px!important}.test-a1-stats .test-a1-stat-actions{gap:16px}.test-a1-stats .test-a1-stat .test-a1-stat-value{min-width:42px!important;font-size:9px!important}.test-a1-stats .test-a1-stat .test-a1-stat-rank{min-width:33px;height:22px;padding:0 7px;font-size:7px}}
 `;
