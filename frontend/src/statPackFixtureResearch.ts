@@ -1,3 +1,5 @@
+import{matchesAtPhysicalStadium}from'./stadiumIdentity';
+
 export type FixtureResearchMatch={
  match_id:number;
  match_date:string;
@@ -87,17 +89,18 @@ export function researchUpcomingFixture(
   else if(priorSeasons.length>=10)add(`Season Start · Opening ${fixture.venue==='H'?'Home':'Away'} Record`,`Victory over ${fixture.opponent} would give Leeds wins in their opening ${nextStage} ${where} matches of the ${fixture.competition} campaign, a sequence not found in the recorded archive.`,100,`${priorSeasons.length} previous seasons checked at exactly ${nextStage} ${where} matches`,`season-opening-venue`);
  }
 
- // Stadium-specific winning sequence. Only legal when the upcoming stadium is known.
+ // Stadium-specific winning sequence. Physical venue identity is canonicalised so
+ // sponsorship/name changes do not split one ground's history.
  if(fixture.stadium){
-  const atGround=chron.filter(m=>m.stadium===fixture.stadium&&scope(m));
+  const atGround=matchesAtPhysicalStadium(chron,fixture.stadium).filter(scope);
   let run=0;
   for(let i=atGround.length-1;i>=0&&won(atGround[i]);i--)run++;
   if(run>=1){
    const target=run+1;
    let historicalMax=0,r=0,lastAtTarget:FixtureResearchMatch|null=null;
    for(const m of atGround.slice(0,-run)){if(won(m)){r++;historicalMax=Math.max(historicalMax,r);if(r>=target)lastAtTarget=m}else r=0}
-   if(target>historicalMax)add('Stadium · Winning Sequence',`Victory over ${fixture.opponent} would give Leeds ${target} consecutive ${fixture.competition} wins at ${fixture.stadium}, their longest recorded winning sequence at the ground.`,98,`${atGround.length} previous ${fixture.competition} matches at ${fixture.stadium} checked`,'stadium-run');
-   else if(lastAtTarget)add('Stadium · Winning Sequence',`Victory over ${fixture.opponent} would give Leeds ${target} consecutive ${fixture.competition} wins at ${fixture.stadium}, a sequence they last reached there in ${lastAtTarget.match_date.slice(0,4)}.`,95,`${atGround.length} previous ${fixture.competition} matches at ${fixture.stadium} checked`,'stadium-run');
+   if(target>historicalMax)add('Stadium · Winning Sequence',`Victory over ${fixture.opponent} would give Leeds ${target} consecutive ${fixture.competition} wins at ${fixture.stadium}, their longest recorded winning sequence at the ground.`,98,`${atGround.length} previous ${fixture.competition} matches at the same physical stadium checked across verified venue-name aliases`,'stadium-run');
+   else if(lastAtTarget)add('Stadium · Winning Sequence',`Victory over ${fixture.opponent} would give Leeds ${target} consecutive ${fixture.competition} wins at ${fixture.stadium}, a sequence they last reached there in ${lastAtTarget.match_date.slice(0,4)}.`,95,`${atGround.length} previous ${fixture.competition} matches at the same physical stadium checked across verified venue-name aliases`,'stadium-run');
   }
  }
 
