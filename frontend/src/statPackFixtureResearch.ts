@@ -104,6 +104,20 @@ export function researchUpcomingFixture(
   }
  }
 
+ // Opponent + fixture venue sequence. This keeps home/away history separate and
+ // only earns Grade A when the current run has a genuine historical comparator.
+ const venueH2h=chron.filter(m=>scope(m)&&venue(m)&&m.opponent===fixture.opponent);
+ let venueWinRun=0;
+ for(let i=venueH2h.length-1;i>=0&&won(venueH2h[i]);i--)venueWinRun++;
+ if(venueWinRun>=1){
+  const target=venueWinRun+1;
+  let historicalMax=0,r=0,lastAtTarget:FixtureResearchMatch|null=null;
+  for(const m of venueH2h.slice(0,-venueWinRun)){if(won(m)){r++;historicalMax=Math.max(historicalMax,r);if(r>=target)lastAtTarget=m}else r=0}
+  const where=fixture.venue==='H'?'at home':'away';
+  if(target>historicalMax)add(`Opponent · ${fixture.venue==='H'?'Home':'Away'} Winning Sequence`, `Victory over ${fixture.opponent} would give Leeds ${target} consecutive ${fixture.competition} wins ${where} against them, their longest recorded winning sequence in this fixture at that venue.`,99,`${venueH2h.length} ${fixture.competition} ${where} meetings with ${fixture.opponent} checked`,'opponent-venue-run');
+  else if(lastAtTarget)add(`Opponent · ${fixture.venue==='H'?'Home':'Away'} Winning Sequence`,`Victory over ${fixture.opponent} would give Leeds ${target} consecutive ${fixture.competition} wins ${where} against them, a sequence they last reached in ${lastAtTarget.match_date.slice(0,4)}.`,96,`${venueH2h.length} ${fixture.competition} ${where} meetings with ${fixture.opponent} checked`,'opponent-venue-run');
+ }
+
  // First-goal outcome intelligence: recent form plus opponent-specific response.
  // This is descriptive context, so it remains Grade B until a separate historical
  // significance comparator proves a record/first/since angle.
