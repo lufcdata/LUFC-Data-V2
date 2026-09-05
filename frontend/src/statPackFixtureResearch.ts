@@ -145,6 +145,21 @@ export function researchUpcomingFixture(
   else if(lastAtTarget)add(`Opponent · ${fixture.venue==='H'?'Home':'Away'} Scoring Sequence`,`Scoring against ${fixture.opponent} would make it ${target} consecutive ${fixture.competition} meetings in which Leeds have found the net ${where} against them, a sequence they last reached in ${lastAtTarget.match_date.slice(0,4)}.`,95,`${venueH2h.length} ${fixture.competition} ${where} meetings with ${fixture.opponent} checked`,'opponent-venue-scoring');
  }
 
+ // Venue-conditioned scoring drought breaker. This is only promoted when Leeds
+ // have failed to score in at least three consecutive exact-context meetings, or
+ // have never scored in a sufficiently deep recorded sample.
+ let venueScorelessRun=0;
+ for(let i=venueH2h.length-1;i>=0&&venueH2h[i].leeds_score===0;i--)venueScorelessRun++;
+ if(venueScorelessRun>=3){
+  const where=fixture.venue==='H'?'at home':'away';
+  const previousScoring=[...venueH2h.slice(0,-venueScorelessRun)].reverse().find(m=>m.leeds_score>0);
+  if(previousScoring){
+   add(`Opponent · ${fixture.venue==='H'?'Home':'Away'} Scoring Drought`,`A goal against ${fixture.opponent} would be Leeds' first ${fixture.competition} goal ${where} against them since ${previousScoring.match_date.slice(0,4)}.`,98,`${venueScorelessRun} consecutive ${fixture.competition} ${where} meetings with ${fixture.opponent} without a Leeds goal`,'opponent-venue-scoring-drought');
+  }else if(venueH2h.length>=5){
+   add(`Opponent · ${fixture.venue==='H'?'Home':'Away'} Scoring Drought`,`A goal against ${fixture.opponent} would be Leeds' first recorded ${fixture.competition} goal ${where} against them.`,99,`${venueH2h.length} recorded ${fixture.competition} ${where} meetings with ${fixture.opponent} checked; Leeds did not score in any`,'opponent-venue-scoring-drought');
+  }
+ }
+
  // Two-goal scoring significance asks a different question from winning margin:
  // Leeds only need to score 2+, regardless of the final result. Promote it only
  // when the exact opponent/competition/venue history makes the event genuinely rare.
