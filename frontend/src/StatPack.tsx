@@ -102,7 +102,10 @@ export default function StatPack(){
    {label:'Clean-Sheet Run',fn:m=>m.opponent_score===0,min:2,noun:'league clean sheets'}
   ];
   for(const s of seq){const run=tail(leagueMatches,s.fn);if(run<s.min)continue;const target=run+1,prev=previousRun(leagueMatches,s.fn,target,run),lead=s.negative?`Leeds are looking to avoid ${target} consecutive league defeats.`:`Leeds can make it ${target} consecutive ${s.noun}.`;add(s.label,`${lead} ${prev?`The last Leeds side to reach a sequence of ${target} completed that run in ${fmt(prev.match_date)}.`:`No previous Leeds side in the recorded league archive has reached that sequence.`}`,prev?96:98,evidence(leagueMatches),`team-${s.label}`)}
-  for(const s of seq){const run=tail(h2h,s.fn);if(run<Math.max(2,s.min-1))continue;const target=run+1,prev=previousRun(h2h,s.fn,target,run);const action=s.negative?`Leeds are looking to avoid a ${target}th consecutive defeat against ${opponent}.`:`Leeds can extend their current ${run}-match ${s.label.toLowerCase()} against ${opponent} to ${target}.`;add(`Opponent · ${s.label}`,`${action} ${prev?`The last equivalent sequence in this fixture was completed in ${fmt(prev.match_date)}.`:`It would be the first such sequence in the recorded history of this fixture.`}`,prev?95:97,evidence(h2h),`h2h-${s.label}`)}
+  // All-venue/all-competition opponent streaks are fallback research only. Once
+  // authoritative competition + H/A context exists, researchUpcomingFixture owns
+  // those opponent sequences so the broader legacy population cannot compete.
+  if(!(fixtureCompetition&&fixtureVenue)){for(const s of seq){const run=tail(h2h,s.fn);if(run<Math.max(2,s.min-1))continue;const target=run+1,prev=previousRun(h2h,s.fn,target,run);const action=s.negative?`Leeds are looking to avoid a ${target}th consecutive defeat against ${opponent}.`:`Leeds can extend their current ${run}-match ${s.label.toLowerCase()} against ${opponent} to ${target}.`;add(`Opponent · ${s.label}`,`${action} ${prev?`The last equivalent sequence in this fixture was completed in ${fmt(prev.match_date)}.`:`It would be the first such sequence in the recorded history of this fixture.`}`,prev?95:97,evidence(h2h),`h2h-${s.label}`)}}
 
   // Exact-scope season-start comparators.
   if(current?.season){
