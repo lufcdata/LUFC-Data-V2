@@ -34,3 +34,7 @@
  .test-a1-standing-head span:last-child,.test-a1-standing-row>b{text-align:center!important}
  .test-a1-goals-standing{order:0!important}
 }
+
+/* Leeds Career Numbers: enforce the intended two-colour palette only. */
+.test-a1-summary .test-a1-season-apps{background:#2F91ED!important;opacity:1!important}
+.test-a1-summary .test-a1-season-goals{background:#F5DB18!important;opacity:1!important}
