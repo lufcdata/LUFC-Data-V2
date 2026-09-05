@@ -16,6 +16,7 @@ const STADIUM_ALIASES:Record<string,string>={
  'McAlpine Stadium, Huddersfield':"John Smith's Stadium, Huddersfield",
  'Brentford Community Stadium, London':'Gtech Community Stadium, London',
  'Walkers Stadium, Leicester':'King Power Stadium, Leicester',
+ 'Dean Court, Bournemouth':'Vitality Stadium, Bournemouth',
 };
 
 export function canonicalStadiumKey(stadium:string|null|undefined):string|null{
