@@ -118,6 +118,19 @@ export function researchUpcomingFixture(
   else if(lastAtTarget)add(`Opponent · ${fixture.venue==='H'?'Home':'Away'} Winning Sequence`,`Victory over ${fixture.opponent} would give Leeds ${target} consecutive ${fixture.competition} wins ${where} against them, a sequence they last reached in ${lastAtTarget.match_date.slice(0,4)}.`,96,`${venueH2h.length} ${fixture.competition} ${where} meetings with ${fixture.opponent} checked`,'opponent-venue-run');
  }
 
+ // Venue-conditioned unbeaten history against the upcoming opponent. A draw or win
+ // in the upcoming fixture extends the run; only record/since comparators earn Grade A.
+ let venueUnbeatenRun=0;
+ for(let i=venueH2h.length-1;i>=0&&venueH2h[i].result!=='Lost';i--)venueUnbeatenRun++;
+ if(venueUnbeatenRun>=2){
+  const target=venueUnbeatenRun+1;
+  let historicalMax=0,r=0,lastAtTarget:FixtureResearchMatch|null=null;
+  for(const m of venueH2h.slice(0,-venueUnbeatenRun)){if(m.result!=='Lost'){r++;historicalMax=Math.max(historicalMax,r);if(r>=target)lastAtTarget=m}else r=0}
+  const where=fixture.venue==='H'?'at home':'away';
+  if(target>historicalMax)add(`Opponent · ${fixture.venue==='H'?'Home':'Away'} Unbeaten Sequence`,`Avoiding defeat against ${fixture.opponent} would make it ${target} consecutive ${fixture.competition} meetings unbeaten ${where} against them, Leeds' longest recorded unbeaten sequence in this fixture at that venue.`,99,`${venueH2h.length} ${fixture.competition} ${where} meetings with ${fixture.opponent} checked`,'opponent-venue-unbeaten');
+  else if(lastAtTarget)add(`Opponent · ${fixture.venue==='H'?'Home':'Away'} Unbeaten Sequence`,`Avoiding defeat against ${fixture.opponent} would make it ${target} consecutive ${fixture.competition} meetings unbeaten ${where} against them, a sequence they last reached in ${lastAtTarget.match_date.slice(0,4)}.`,96,`${venueH2h.length} ${fixture.competition} ${where} meetings with ${fixture.opponent} checked`,'opponent-venue-unbeaten');
+ }
+
  // Venue-conditioned clean-sheet history against the upcoming opponent.
  // This is separate from the all-venue opponent sequence below: the fixture venue
  // is part of the trigger, so home and away shutout histories can never contaminate each other.
