@@ -1,6 +1,7 @@
 import React,{useEffect,useMemo,useState}from'react';
 import{supabase,supabaseConfigError}from'./supabase';
 import{researchUpcomingFixture}from'./statPackFixtureResearch';
+import{matchesExactFixtureScope}from'./statPackFixtureScope';
 import{canonicalStadiumKey,matchesAtPhysicalStadium}from'./stadiumIdentity';
 
 type Match={match_id:number;match_date:string;season:string|null;opponent:string;competition:string;venue_type:string;leeds_score:number;opponent_score:number;result:string;stadium:string|null;leeds_manager:string|null;opposition_manager_name:string|null;first_goal:string|null;captain_player_id:number|null;kickoff_time:string|null};
@@ -66,6 +67,7 @@ export default function StatPack(){
   const names=new Map(players.map(p=>[p.player_id,p.display_name]));
   const activeIds=players.filter(p=>p.active).map(p=>p.player_id);
   const h2h=chron.filter(m=>m.opponent===opponent),leagueH2h=h2h.filter(league),leagueMatches=chron.filter(league);
+  const exactFixtureH2h=fixtureCompetition&&fixtureVenue?matchesExactFixtureScope(chron,{opponent,competition:fixtureCompetition,venue:fixtureVenue}):[];
   const current=chron.at(-1),manager=[...chron].reverse().find(m=>m.leeds_manager)?.leeds_manager??null,out:Stat[]=[];
   const add=(label:string,text:string,priority:number,e:string,family:string,grade:'A'|'B'='A')=>out.push({label,text,priority,evidence:e,family,grade});
 
@@ -79,10 +81,11 @@ export default function StatPack(){
   const countGoals=(pid:number,ids:Set<number>)=>(goalsByPlayer.get(pid)??[]).filter(g=>ids.has(g.match_id)).length;
   const countAssists=(pid:number,ids:Set<number>)=>(assistsByPlayer.get(pid)??[]).filter(g=>ids.has(g.match_id)).length;
 
-  // Long-awaited opponent and stadium firsts.
-  const away=leagueH2h.filter(m=>m.venue_type==='A'),lastAwayWin=[...away].reverse().find(m=>m.result==='Won');
-  if(away.length&&!lastAwayWin)add('Historic Opportunity',`Leeds are looking for their first recorded league victory away to ${opponent}, having previously gone ${away.length} visits without a win (${rec(away)}).`,100,evidence(away),'firsts');
-  if(lastAwayWin){const since=away.filter(m=>m.match_date>lastAwayWin.match_date);if(since.length>=2)add('Long-Awaited League Win',`Leeds are looking for their first league victory away to ${opponent} since ${fmt(lastAwayWin.match_date)}, having gone ${since.length} league visits without winning since then (${rec(since)}).`,100,evidence(away),'firsts')}
+  // Long-awaited opponent and stadium firsts. Opponent-specific away history is
+  // now constrained to the selected competition + away fixture context.
+  const away=fixtureVenue==='A'&&LEAGUE.has(fixtureCompetition)?exactFixtureH2h:[],lastAwayWin=[...away].reverse().find(m=>m.result==='Won');
+  if(away.length&&!lastAwayWin)add('Historic Opportunity',`Leeds are looking for their first recorded ${fixtureCompetition} victory away to ${opponent}, having previously gone ${away.length} visits without a win (${rec(away)}).`,100,evidence(away),'firsts');
+  if(lastAwayWin){const since=away.filter(m=>m.match_date>lastAwayWin.match_date);if(since.length>=2)add('Long-Awaited League Win',`Leeds are looking for their first ${fixtureCompetition} victory away to ${opponent} since ${fmt(lastAwayWin.match_date)}, having gone ${since.length} ${fixtureCompetition} visits without winning since then (${rec(since)}).`,100,evidence(away),'firsts')}
   const ground=away.at(-1)?.stadium;if(ground){const at=matchesAtPhysicalStadium(leagueMatches.filter(m=>m.venue_type==='A'),ground),wins=at.filter(m=>m.result==='Won');if(at.length>=2&&!wins.length)add('Stadium First',`Leeds are seeking their first recorded league win at ${ground}; their previous ${at.length} league visits there have returned ${rec(at)}.`,99,`${evidence(at)} · same physical stadium checked across verified venue-name aliases`,'stadium')}
 
   // Premier League opponent trend and clean-sheet correlation in recent meetings.
