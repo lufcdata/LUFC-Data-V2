@@ -144,6 +144,20 @@ export function researchUpcomingFixture(
   else if(lastAtTarget)add(`Opponent · ${fixture.venue==='H'?'Home':'Away'} Scoring Sequence`,`Scoring against ${fixture.opponent} would make it ${target} consecutive ${fixture.competition} meetings in which Leeds have found the net ${where} against them, a sequence they last reached in ${lastAtTarget.match_date.slice(0,4)}.`,95,`${venueH2h.length} ${fixture.competition} ${where} meetings with ${fixture.opponent} checked`,'opponent-venue-scoring');
  }
 
+ // Scoreline significance: only surface a multi-goal-win angle when the exact
+ // opponent/competition/venue history makes it a genuine first or long-awaited event.
+ if(venueH2h.length>=5){
+  const multiGoalWins=venueH2h.filter(m=>won(m)&&m.leeds_score-m.opponent_score>=2);
+  const lastMultiGoalWin=multiGoalWins.at(-1);
+  const sinceLast=lastMultiGoalWin?venueH2h.filter(m=>m.match_date>lastMultiGoalWin.match_date).length:venueH2h.length;
+  const where=fixture.venue==='H'?'at home':'away';
+  if(!lastMultiGoalWin){
+   add(`Opponent · ${fixture.venue==='H'?'Home':'Away'} Multi-Goal Win`,`A victory by two or more goals against ${fixture.opponent} would be Leeds' first recorded ${fixture.competition} multi-goal win ${where} against them.`,99,`${venueH2h.length} ${fixture.competition} ${where} meetings with ${fixture.opponent} checked; no previous win by 2+ goals found`,'opponent-venue-multigoal-win');
+  }else if(sinceLast>=4){
+   add(`Opponent · ${fixture.venue==='H'?'Home':'Away'} Multi-Goal Win`,`A victory by two or more goals against ${fixture.opponent} would be Leeds' first ${fixture.competition} multi-goal win ${where} against them since ${lastMultiGoalWin.match_date.slice(0,4)}.`,97,`${sinceLast} ${fixture.competition} ${where} meetings since Leeds last beat ${fixture.opponent} by 2+ goals`,'opponent-venue-multigoal-win');
+  }
+ }
+
  // Venue-conditioned clean-sheet history against the upcoming opponent.
  // This is separate from the all-venue opponent sequence below: the fixture venue
  // is part of the trigger, so home and away shutout histories can never contaminate each other.
