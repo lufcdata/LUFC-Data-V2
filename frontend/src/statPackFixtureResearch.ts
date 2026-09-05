@@ -144,6 +144,21 @@ export function researchUpcomingFixture(
   else if(lastAtTarget)add(`Opponent · ${fixture.venue==='H'?'Home':'Away'} Scoring Sequence`,`Scoring against ${fixture.opponent} would make it ${target} consecutive ${fixture.competition} meetings in which Leeds have found the net ${where} against them, a sequence they last reached in ${lastAtTarget.match_date.slice(0,4)}.`,95,`${venueH2h.length} ${fixture.competition} ${where} meetings with ${fixture.opponent} checked`,'opponent-venue-scoring');
  }
 
+ // Two-goal scoring significance asks a different question from winning margin:
+ // Leeds only need to score 2+, regardless of the final result. Promote it only
+ // when the exact opponent/competition/venue history makes the event genuinely rare.
+ if(venueH2h.length>=6){
+  const twoGoalGames=venueH2h.filter(m=>m.leeds_score>=2);
+  const lastTwoGoalGame=twoGoalGames.at(-1);
+  const sinceLast=lastTwoGoalGame?venueH2h.filter(m=>m.match_date>lastTwoGoalGame.match_date).length:venueH2h.length;
+  const where=fixture.venue==='H'?'at home':'away';
+  if(!lastTwoGoalGame){
+   add(`Opponent · ${fixture.venue==='H'?'Home':'Away'} Two-Goal Scoring`,`Scoring two or more goals against ${fixture.opponent} would be a first for Leeds in the recorded ${fixture.competition} meetings ${where} against them.`,99,`${venueH2h.length} ${fixture.competition} ${where} meetings with ${fixture.opponent} checked; no previous Leeds 2+ goal game found`,'opponent-venue-two-goal-scoring');
+  }else if(sinceLast>=5){
+   add(`Opponent · ${fixture.venue==='H'?'Home':'Away'} Two-Goal Scoring`,`Scoring two or more goals against ${fixture.opponent} would be the first time Leeds have reached that mark in a ${fixture.competition} meeting ${where} against them since ${lastTwoGoalGame.match_date.slice(0,4)}.`,97,`${sinceLast} ${fixture.competition} ${where} meetings since Leeds last scored 2+ against ${fixture.opponent}`,'opponent-venue-two-goal-scoring');
+  }
+ }
+
  // Scoreline significance: only surface a multi-goal-win angle when the exact
  // opponent/competition/venue history makes it a genuine first or long-awaited event.
  if(venueH2h.length>=5){
