@@ -19,3 +19,5 @@
 .goals-table th:nth-child(9),.goals-table td:nth-child(9){min-width:130px;white-space:nowrap}.goals-table th:nth-child(15),.goals-table td:nth-child(15){min-width:150px;white-space:nowrap}.goals-table th:nth-child(19),.goals-table td:nth-child(19){min-width:130px;white-space:nowrap}.goals-table th:nth-child(20),.goals-table td:nth-child(20){min-width:120px;white-space:nowrap}.goals-table th:nth-child(21),.goals-table td:nth-child(21){min-width:130px;white-space:nowrap}.goals-table th:nth-child(23),.goals-table td:nth-child(23){min-width:170px;white-space:nowrap}
 /* Goals archive: centre every column heading and row value. */
 .goals-table thead th,.goals-table tbody td{text-align:center}.goals-table .team-cell{justify-content:center}
+/* Goals archive: identity/detail columns read left-to-right; stat columns stay centred. */
+.goals-table th:nth-child(3),.goals-table td:nth-child(3),.goals-table th:nth-child(6),.goals-table td:nth-child(6),.goals-table th:nth-child(17),.goals-table td:nth-child(17),.goals-table th:nth-child(22),.goals-table td:nth-child(22){text-align:left}.goals-table td:nth-child(6) .team-cell{justify-content:flex-start}
