@@ -190,17 +190,19 @@ export function researchUpcomingFixture(
  }
 
  // Emphatic scoreline significance is deliberately rarer than the 2+ family.
- // It needs a deeper exact-context sample and a longer gap before a 3+ goal
- // victory can earn Grade A, preventing speculative scoreline clutter.
+ // Suppress it when the stronger 3+ fact would merely repeat the same first/since
+ // comparator already carried by the broader 2+ multi-goal-win family.
  if(venueH2h.length>=8){
+  const multiGoalWins=venueH2h.filter(m=>won(m)&&m.leeds_score-m.opponent_score>=2);
+  const lastMultiGoalWin=multiGoalWins.at(-1);
   const emphaticWins=venueH2h.filter(m=>won(m)&&m.leeds_score-m.opponent_score>=3);
   const lastEmphaticWin=emphaticWins.at(-1);
   const sinceLast=lastEmphaticWin?venueH2h.filter(m=>m.match_date>lastEmphaticWin.match_date).length:venueH2h.length;
   const where=fixture.venue==='H'?'at home':'away';
-  if(!lastEmphaticWin){
-   add(`Opponent · ${fixture.venue==='H'?'Home':'Away'} Emphatic Win`,`A victory by three or more goals against ${fixture.opponent} would be Leeds' first recorded ${fixture.competition} win by that margin ${where} against them.`,100,`${venueH2h.length} ${fixture.competition} ${where} meetings with ${fixture.opponent} checked; no previous win by 3+ goals found`,'opponent-venue-emphatic-win');
-  }else if(sinceLast>=6){
-   add(`Opponent · ${fixture.venue==='H'?'Home':'Away'} Emphatic Win`,`A victory by three or more goals against ${fixture.opponent} would be Leeds' first ${fixture.competition} win by that margin ${where} against them since ${lastEmphaticWin.match_date.slice(0,4)}.`,98,`${sinceLast} ${fixture.competition} ${where} meetings since Leeds last beat ${fixture.opponent} by 3+ goals`,'opponent-venue-emphatic-win');
+  if(!lastEmphaticWin&&lastMultiGoalWin){
+   add(`Opponent · ${fixture.venue==='H'?'Home':'Away'} Emphatic Win`,`A victory by three or more goals against ${fixture.opponent} would be Leeds' first recorded ${fixture.competition} win by that margin ${where} against them.`,100,`${venueH2h.length} ${fixture.competition} ${where} meetings with ${fixture.opponent} checked; previous 2+ goal wins exist but no previous win by 3+ goals found`,'opponent-venue-emphatic-win');
+  }else if(lastEmphaticWin&&sinceLast>=6&&lastMultiGoalWin?.match_id!==lastEmphaticWin.match_id){
+   add(`Opponent · ${fixture.venue==='H'?'Home':'Away'} Emphatic Win`,`A victory by three or more goals against ${fixture.opponent} would be Leeds' first ${fixture.competition} win by that margin ${where} against them since ${lastEmphaticWin.match_date.slice(0,4)}.`,98,`${sinceLast} ${fixture.competition} ${where} meetings since Leeds last beat ${fixture.opponent} by 3+ goals; latest 2+ goal win has a different comparator`,'opponent-venue-emphatic-win');
   }
  }
 
