@@ -7,6 +7,34 @@
 **Source code commit:** `2886ecbe5561306bad830d01cb614ab6df454a14`  
 **Golden branch:** `golden-database-2026-09-06`
 
+## RESTORE STATUS — IMPORTANT
+
+**This Golden branch is permanent, but the disaster-recovery payload is NOT YET complete.**
+
+The branch currently preserves the matching source-code state plus canonical database fingerprints. It must **not** be described as a complete/restorable Golden Database Master until a verified full database dump/archive has been added to the protected backup location and a test restore has been validated.
+
+The finished Golden Database Master must contain everything required to reconstruct the LUFC production database as it existed on 6 September 2026, including all relevant database data and database objects required by the application.
+
+A completed Golden backup must include, as applicable:
+
+- all LUFC production data tables and every row;
+- staging/provenance/audit tables that form part of LUFC Data V2;
+- schemas and table definitions;
+- primary keys, foreign keys, unique constraints and check constraints;
+- indexes;
+- sequences / identity state;
+- views and materialized views;
+- PostgreSQL functions / RPCs;
+- triggers;
+- RLS configuration and policies;
+- required extensions and other database objects;
+- migration/version reference sufficient to reproduce the schema;
+- a restore procedure;
+- cryptographic/integrity hashes and row-count verification;
+- the exact matching application Git commit.
+
+The backup is only considered **GOLDEN RESTORABLE** after restoration into an isolated database has succeeded and verification has confirmed that the restored database matches the captured Golden state.
+
 ## PERMANENT PROTECTION RULE
 
 **The branch `golden-database-2026-09-06` is permanent and must never be deleted, rotated, expired, renamed away, or included in any automated cleanup process.**
@@ -59,6 +87,15 @@ These fingerprints were calculated directly from the live production database on
 | `players` | 904 | `f78ed34f08245ba694b0a84fa39bab8a` |
 | `seasons` | 101 | `64773c33c7ec9826c4bdb7e6ed557371` |
 
-## Important note
+## Completion gate
 
-This branch and manifest fingerprint the Golden state. A separate restorable database dump/archive should be maintained as the disaster-recovery payload. The permanent Golden Master and temporary 14-day rolling backups must remain separate concepts throughout the ingestion system.
+Do not mark this backup as **GOLDEN RESTORABLE** until all of the following are true:
+
+1. A full database dump/archive has been captured from production.
+2. The archive is stored in a protected location that is not publicly accessible.
+3. Its checksum is recorded here.
+4. A restore has been performed into an isolated target database.
+5. Schema objects, row counts and canonical fingerprints have been verified against the Golden state.
+6. The restore procedure is documented and proven.
+
+Until those conditions pass, this branch remains the **permanent Golden baseline**, but not yet the completed disaster-recovery archive.
