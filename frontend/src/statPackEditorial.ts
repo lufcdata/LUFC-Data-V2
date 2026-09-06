@@ -65,6 +65,11 @@ const firstGoalCopy=(finding:FixtureResearchFinding)=>{
   const[,wins,sample,competition,w,d,l]=scored;
   return{...finding,text:`Leeds have won ${wins} of their last ${sample} ${competition} matches in which they have opened the scoring (W${w} D${d} L${l}), losing just ${l} times after netting first in that run.`};
  }
+ const conceded=finding.text.match(/^Leeds have avoided defeat in (\d+) of their last (\d+) (.+?) matches after conceding first \((\d+)W (\d+)D (\d+)L\)\.$/);
+ if(conceded){
+  const[,avoided,sample,competition,w,d,l]=conceded;
+  return{...finding,text:`Leeds have avoided defeat in ${avoided} of their last ${sample} ${competition} matches in which they conceded first (W${w} D${d} L${l}), recovering to win ${w} and draw ${d} after falling behind.`};
+ }
  return{...finding,text:finding.text.replace(/\((\d+)W (\d+)D (\d+)L\)/,(_m,w,d,l)=>`(W${w} D${d} L${l})`)};
 };
 
