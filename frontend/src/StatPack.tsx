@@ -179,7 +179,7 @@ export default function StatPack(){
    if(currentWins===0&&lastOtherWin){const gapYears=yr(current?.match_date??lastOtherWin.match_date)-yr(lastOtherWin.match_date),grade: 'A'|'B'=gapYears>=5?'A':'B';add('Manager · First Win Against Opponent',`Victory over ${opponent} would be ${manager}'s first league win against them as Leeds manager. The last Leeds manager to beat ${opponent} in the league was ${lastOtherWin.leeds_manager} in ${fmt(lastOtherWin.match_date)}.`,gapYears>=5?98:72,evidence(leagueH2h),'manager-opponent-first',grade)}
 
    const ownPl=chron.filter(m=>m.leeds_manager===manager&&m.opponent===opponent&&m.competition==='Premier League');
-   if(ownPl.length){
+   if(fixtureCompetition==='Premier League'&&ownPl.length){
     const currentLosses=ownPl.filter(m=>m.result==='Lost').length,targetLosses=currentLosses+1;
     const lossBoard=managerNames.map(n=>({name:n,losses:chron.filter(m=>m.leeds_manager===n&&m.opponent===opponent&&m.competition==='Premier League'&&m.result==='Lost').length})).filter(x=>x.losses>0).sort((a,b)=>b.losses-a.losses||a.name.localeCompare(b.name));
     const moreAfter=lossBoard.filter(x=>x.name!==manager&&x.losses>targetLosses),equalAfter=lossBoard.filter(x=>x.name!==manager&&x.losses===targetLosses),leader=lossBoard.find(x=>x.name!==manager);
