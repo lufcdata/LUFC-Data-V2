@@ -1,4 +1,4 @@
-export const YORKSHIRE_DERBY_OPPONENTS=new Set([
+export const YORKSHIRE_DERBY_OPPONENTS:ReadonlySet<string>=new Set([
  'Barnsley',
  'Bradford City',
  'Doncaster Rovers',
