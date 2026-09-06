@@ -3,7 +3,7 @@
 // canonicalStadiumKey so sponsorship/name changes do not split one venue's history.
 // Only verified same-site aliases belong here. Replacement grounds must stay separate.
 
-const STADIUM_ALIASES:Record<string,string>={
+const STADIUM_ALIASES:Readonly<Record<string,string>>=Object.freeze({
  'City of Manchester Stadium, Manchester':'Etihad Stadium, Manchester',
  'Britannia Stadium, Stoke':'Bet365 Stadium, Stoke',
  'JJB Stadium, Wigan':'DW Stadium, Wigan',
@@ -17,7 +17,7 @@ const STADIUM_ALIASES:Record<string,string>={
  'Brentford Community Stadium, London':'Gtech Community Stadium, London',
  'Walkers Stadium, Leicester':'King Power Stadium, Leicester',
  'Dean Court, Bournemouth':'Vitality Stadium, Bournemouth',
-};
+});
 
 export function canonicalStadiumKey(stadium:string|null|undefined):string|null{
  if(!stadium)return null;
