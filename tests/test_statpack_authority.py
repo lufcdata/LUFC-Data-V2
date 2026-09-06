@@ -28,6 +28,14 @@ def test_date_dependent_scenarios_remain_suppressed_without_fixture_date():
     assert "if(false&&current&&fixtureCompetition==='Premier League')" in stat_pack
 
 
+def test_live_archive_end_scenarios_require_current_fixture_season():
+    stat_pack = source(STAT_PACK)
+
+    assert "if(LEAGUE.has(fixtureCompetition)&&fixtureSeason===current?.season)for(const s of seq)" in stat_pack
+    assert stat_pack.count("if(manager&&LEAGUE.has(fixtureCompetition)&&fixtureSeason===current?.season)") == 2
+    assert "if(manager&&LEAGUE.has(fixtureCompetition)){" not in stat_pack
+
+
 def test_exact_fixture_scope_has_one_canonical_predicate():
     fixture_scope = source(FIXTURE_SCOPE)
 
