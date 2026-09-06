@@ -25,11 +25,7 @@ export function matchesExactFixtureScope<T extends ScopedMatch>(
  matches:readonly T[],
  fixture:FixtureScope,
 ):T[]{
- return matches.filter(match=>
-  match.opponent===fixture.opponent&&
-  match.competition===fixture.competition&&
-  match.venue_type===fixture.venue
- );
+ return matches.filter(match=>isExactFixtureScope(match,fixture));
 }
 
 export function isExactFixtureScope(
