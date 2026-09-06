@@ -1,0 +1,45 @@
+/* Stat Pack publication cards: tighter, flatter and easier to scan. */
+.lb-table-card > .lb-filterbar + div:has(> div > .section-kicker){
+  display:grid;
+  gap:8px;
+  padding:14px 16px 18px!important;
+}
+.lb-table-card > .lb-filterbar + div > div:has(> .section-kicker){
+  margin-bottom:0!important;
+  padding:14px 16px 15px;
+  border:1px solid #e4e8eb;
+  border-radius:7px;
+  background:#f8fafb;
+  color:#4f5961;
+  box-shadow:0 3px 10px rgba(24,31,33,.025);
+}
+.lb-table-card > .lb-filterbar + div > div:has(> .section-kicker) > .section-kicker{
+  margin-bottom:6px!important;
+  color:#8e989f;
+}
+.lb-table-card > .lb-filterbar + div > div:has(> .section-kicker) > div:nth-child(2){
+  color:#667079;
+  line-height:1.6!important;
+}
+.lb-table-card > .lb-filterbar + div > div:has(> .section-kicker) > div:nth-child(3){
+  color:#8f98a0;
+}
+.theme-dark .lb-table-card > .lb-filterbar + div > div:has(> .section-kicker){
+  background:#151c2b;
+  border-color:#2a3650;
+  color:#cbd2dd;
+  box-shadow:0 4px 14px rgba(4,8,16,.12);
+}
+.theme-dark .lb-table-card > .lb-filterbar + div > div:has(> .section-kicker) > .section-kicker{
+  color:#aeb8c9;
+}
+.theme-dark .lb-table-card > .lb-filterbar + div > div:has(> .section-kicker) > div:nth-child(2){
+  color:#c9d0db;
+}
+.theme-dark .lb-table-card > .lb-filterbar + div > div:has(> .section-kicker) > div:nth-child(3){
+  color:#8f9aaf;
+}
+@media(max-width:700px){
+  .lb-table-card > .lb-filterbar + div:has(> div > .section-kicker){padding:12px 0 4px!important;gap:7px}
+  .lb-table-card > .lb-filterbar + div > div:has(> .section-kicker){padding:13px 14px 14px;border-radius:7px}
+}
