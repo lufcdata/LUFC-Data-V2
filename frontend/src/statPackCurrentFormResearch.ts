@@ -1,9 +1,85 @@
 import type{FixtureResearchFinding,FixtureResearchMatch}from'./statPackFixtureResearch';
+import{matchesAtPhysicalStadium}from'./stadiumIdentity';
 
 const FORM_WINDOW=12;
+const UNBEATEN_MIN=4;
 const SUPPORTED=new Set(['Premier League','Championship','Division One','Division Two','League One']);
 const monthYear=(d:string)=>new Date(`${d}T00:00:00`).toLocaleDateString('en-GB',{month:'long',year:'numeric'});
 const wdl=(xs:readonly FixtureResearchMatch[])=>({w:xs.filter(m=>m.result==='Won').length,d:xs.filter(m=>m.result==='Draw').length,l:xs.filter(m=>m.result==='Lost').length});
+const stadiumName=(s:string)=>s.split(',')[0].trim();
+
+const activeUnbeatenRun=(xs:readonly FixtureResearchMatch[])=>{
+ let start=xs.length;
+ while(start>0&&xs[start-1].result!=='Lost')start--;
+ return xs.slice(start);
+};
+
+const previousUnbeatenRunAtLeast=(xs:readonly FixtureResearchMatch[],target:number,currentRun:number)=>{
+ let run=0,last:FixtureResearchMatch|null=null;
+ const historical=currentRun?xs.slice(0,-currentRun):xs;
+ for(const m of historical){
+  if(m.result!=='Lost'){run++;if(run>=target)last=m}else run=0;
+ }
+ return last;
+};
+
+/**
+ * Active unbeaten-run research across natural, authoritative populations.
+ *
+ * Any live unbeaten run of four or more matches deserves consideration. The
+ * machine checks all competitions, the selected exact competition, Leeds'
+ * current physical home ground, away matches, and competition-specific home/
+ * away variants. Identical underlying runs are deduplicated by match IDs so a
+ * four-game start to a season cannot be printed several times under different
+ * labels merely because the populations happen to coincide.
+ */
+export function researchActiveUnbeatenRuns(
+ matches:readonly FixtureResearchMatch[],
+ competition:string,
+):FixtureResearchFinding[]{
+ const chron=[...matches].sort((a,b)=>a.match_date.localeCompare(b.match_date)||a.match_id-b.match_id);
+ if(!chron.length)return[];
+ const latestHome=[...chron].reverse().find(m=>m.venue_type==='H'&&Boolean(m.stadium));
+ const homeGround=latestHome?.stadium??null;
+ const exactCompetition=chron.filter(m=>m.competition===competition);
+ const away=chron.filter(m=>m.venue_type==='A');
+ const competitionAway=exactCompetition.filter(m=>m.venue_type==='A');
+ const atHomeGround=homeGround?matchesAtPhysicalStadium(chron.filter(m=>m.venue_type==='H'),homeGround):[];
+ const competitionAtHomeGround=homeGround?matchesAtPhysicalStadium(exactCompetition.filter(m=>m.venue_type==='H'),homeGround):[];
+ const scopes:{label:string;population:FixtureResearchMatch[]}[]=[
+  {label:'matches across all competitions',population:chron},
+  {label:`${competition} matches`,population:exactCompetition},
+  ...(homeGround?[{label:`matches at ${stadiumName(homeGround)}`,population:atHomeGround}]:[]),
+  {label:'away matches across all competitions',population:away},
+  ...(homeGround?[{label:`${competition} matches at ${stadiumName(homeGround)}`,population:competitionAtHomeGround}]:[]),
+  {label:`${competition} away matches`,population:competitionAway},
+ ];
+ const findings:FixtureResearchFinding[]=[];
+ const seenRuns=new Set<string>();
+ for(const scope of scopes){
+  if(scope.population.length<UNBEATEN_MIN)continue;
+  const run=activeUnbeatenRun(scope.population);
+  if(run.length<UNBEATEN_MIN)continue;
+  const runKey=run.map(m=>m.match_id).join(',');
+  if(seenRuns.has(runKey))continue;
+  seenRuns.add(runKey);
+  const record=wdl(run);
+  const previous=previousUnbeatenRunAtLeast(scope.population,run.length,run.length);
+  const years=previous?Math.max(0,Number(run.at(-1)!.match_date.slice(0,4))-Number(previous.match_date.slice(0,4))):null;
+  const historical=previous
+   ?`, their longest unbeaten run in that scope since ${monthYear(previous.match_date)}`
+   :`, with no earlier unbeaten run of that length found in the recorded archive`;
+  findings.push({
+   label:`Current Form · ${scope.label}`,
+   text:`Leeds United are unbeaten in their last ${run.length} ${scope.label} (W${record.w} D${record.d})${historical}.`,
+   priority:years==null?100:years>=25?100:years>=10?99:years>=5?97:94,
+   evidence:`Active unbeaten run: ${run.length} ${scope.label}, ${run[0].match_date}–${run.at(-1)!.match_date}, IDs ${runKey}; ${previous?`previous run of at least ${run.length} ended ${previous.match_date} at match ${previous.match_id}`:`no previous run of at least ${run.length} found`} `,
+   family:`current-unbeaten-${scope.label.toLowerCase().replace(/[^a-z0-9]+/g,'-')}`,
+   grade:'A',
+  });
+ }
+ return findings;
+}
 
 /** Return the longest contiguous spell containing a qualifying historical window
  * while preserving its low-defeat ceiling. This turns a 12-game comparator into
