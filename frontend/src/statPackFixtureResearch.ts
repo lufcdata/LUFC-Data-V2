@@ -251,6 +251,7 @@ export function researchUpcomingFixture(
  // is part of the trigger, so home and away shutout histories can never contaminate each other.
  let venueCleanRun=0;
  for(let i=venueH2h.length-1;i>=0&&venueH2h[i].opponent_score===0;i--)venueCleanRun++;
+ const venueCleanRunIds=venueCleanRun?venueH2h.slice(-venueCleanRun).map(m=>m.match_id):[];
  if(venueCleanRun>=1){
   const target=venueCleanRun+1;
   let historicalMax=0,r=0,lastAtTarget:FixtureResearchMatch|null=null;
@@ -339,7 +340,12 @@ export function researchUpcomingFixture(
  const opponentMatches=scoped.filter(m=>m.opponent===fixture.opponent);
  let cleanRun=0;
  for(let i=opponentMatches.length-1;i>=0&&opponentMatches[i].opponent_score===0;i--)cleanRun++;
- if(cleanRun>=1){
+ const opponentCleanRunIds=cleanRun?opponentMatches.slice(-cleanRun).map(m=>m.match_id):[];
+ const sameTrailingCleanSheetRun=venueCleanRunIds.length===opponentCleanRunIds.length&&venueCleanRunIds.every((id,i)=>id===opponentCleanRunIds[i]);
+ // Only suppress the broader all-venue story when both families are backed by
+ // exactly the same trailing match IDs. If the all-venue run genuinely extends
+ // across the other venue, it remains a distinct historical finding.
+ if(cleanRun>=1&&!sameTrailingCleanSheetRun){
   const target=cleanRun+1;
   let max=0,r=0,lastTarget:FixtureResearchMatch|null=null;
   for(const m of opponentMatches.slice(0,-cleanRun)){if(m.opponent_score===0){r++;max=Math.max(max,r);if(r>=target)lastTarget=m}else r=0}
