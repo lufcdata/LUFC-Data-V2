@@ -1,6 +1,6 @@
 import{matchesAtPhysicalStadium}from'./stadiumIdentity';
 import{curateFixtureResearch}from'./statPackResearchQuality';
-import{isYorkshireDerbyOpponent,yorkshireDerbyMatches}from'./statPackYorkshireDerby';
+import{isYorkshireDerbyOpponent,yorkshireDerbyRecord}from'./statPackYorkshireDerby';
 
 export type FixtureResearchMatch={
  match_id:number;
@@ -62,10 +62,9 @@ export function researchUpcomingFixture(
  // competitive matches against the explicit derby club list; it is contextual
  // Grade B evidence rather than a record/first/since claim.
  if(isYorkshireDerbyOpponent(fixture.opponent)){
-  const derbies=yorkshireDerbyMatches(chron);
-  if(derbies.length){
-   const r=wdl(derbies),gf=derbies.reduce((sum,m)=>sum+m.leeds_score,0),ga=derbies.reduce((sum,m)=>sum+m.opponent_score,0);
-   add('Yorkshire Derbies',`Ahead of another Yorkshire derby against ${fixture.opponent}, Leeds' recorded competitive record in Yorkshire derbies is ${r.w} wins, ${r.d} draws and ${r.l} defeats from ${derbies.length} matches, with ${gf} goals scored and ${ga} conceded.`,78,`${derbies.length} recorded competitive matches checked; opponents restricted to the signed-off Yorkshire derby club list`,'yorkshire-derby-record','B');
+  const r=yorkshireDerbyRecord(chron);
+  if(r.matches){
+   add('Yorkshire Derbies',`Ahead of another Yorkshire derby against ${fixture.opponent}, Leeds' recorded competitive record in Yorkshire derbies is ${r.wins} wins, ${r.draws} draws and ${r.defeats} defeats from ${r.matches} matches, with ${r.goalsFor} goals scored and ${r.goalsAgainst} conceded.`,78,`${r.matches} recorded competitive matches checked; opponents restricted to the signed-off Yorkshire derby club list`,'yorkshire-derby-record','B');
   }
  }
 
