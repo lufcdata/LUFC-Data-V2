@@ -58,8 +58,13 @@ const h2hCopy=(finding:FixtureResearchFinding,ctx:StatPackEditorialContext)=>{
  return{...finding,text:`Across their last ${words(xs.length)} meetings with ${ctx.opponent} in all competitions, Leeds United have won ${words(r.w)}, drawn ${words(r.d)} and lost ${words(r.l)} (GF${gf}, GA${ga}), with those matches producing ${total} goals.`};
 };
 
-const compactWdl=(finding:FixtureResearchFinding)=>{
+const firstGoalCopy=(finding:FixtureResearchFinding)=>{
  if(finding.family!=='first-goal-recent')return finding;
+ const scored=finding.text.match(/^Leeds have won (\d+) of their last (\d+) (.+?) matches when scoring first \((\d+)W (\d+)D (\d+)L\)\.$/);
+ if(scored){
+  const[,wins,sample,competition,w,d,l]=scored;
+  return{...finding,text:`Leeds have won ${wins} of their last ${sample} ${competition} matches in which they have opened the scoring (W${w} D${d} L${l}), losing just ${l} times after netting first in that run.`};
+ }
  return{...finding,text:finding.text.replace(/\((\d+)W (\d+)D (\d+)L\)/,(_m,w,d,l)=>`(W${w} D${d} L${l})`)};
 };
 
@@ -94,7 +99,7 @@ export function editorializeStatPackFindings<T extends FixtureResearchFinding>(f
   f=managerVenueCopy(f,ctx);
   f=careerMilestoneCopy(f);
   f=h2hCopy(f,ctx);
-  f=compactWdl(f);
+  f=firstGoalCopy(f);
   f=seasonOpeningCopy(f);
   f=proseNumbers(f);
   f=cleanSheetCopy(f);
