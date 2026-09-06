@@ -1,6 +1,7 @@
 import type{FixtureResearchFinding,FixtureResearchMatch,UpcomingFixtureContext}from'./statPackFixtureResearch';
 
 const words=(n:number)=>['zero','one','two','three','four','five','six','seven','eight','nine','ten'][n]??String(n);
+const ordinalWords=(n:number)=>['zeroth','first','second','third','fourth','fifth','sixth','seventh','eighth','ninth','tenth'][n]??`${n}th`;
 const monthYear=(d:string)=>new Date(`${d}T00:00:00`).toLocaleDateString('en-GB',{month:'long',year:'numeric'});
 const wdl=(xs:readonly FixtureResearchMatch[])=>({w:xs.filter(m=>m.result==='Won').length,d:xs.filter(m=>m.result==='Draw').length,l:xs.filter(m=>m.result==='Lost').length});
 
@@ -65,6 +66,20 @@ const seasonOpeningCopy=(finding:FixtureResearchFinding)=>{
  return{...finding,text:finding.text.replace(/opening (\d+) (home|away) matches/g,(_m,n,where)=>`opening ${words(Number(n))} ${where} matches`)};
 };
 
+const proseNumbers=(finding:FixtureResearchFinding)=>{
+ if(finding.family==='opponent-competition-winless-run'||finding.family==='stadium-away-history'||finding.family.startsWith('current-unbeaten-')){
+  return{...finding,text:finding.text.replace(/\blast (\d+)\b/g,(_m,n)=>`last ${words(Number(n))}`)};
+ }
+ return finding;
+};
+
+const cleanSheetCopy=(finding:FixtureResearchFinding)=>{
+ if(finding.family!=='opponent-venue-clean-sheet'&&finding.family!=='clean-sheet-opponent-history')return finding;
+ let text=finding.text.replace(/\bshutout(s)?\b/gi,(_m,plural)=>plural?'clean sheets':'clean sheet');
+ text=text.replace(/\b(\d+)(?:st|nd|rd|th) consecutive\b/g,(_m,n)=>`${ordinalWords(Number(n))} consecutive`);
+ return{...finding,text};
+};
+
 /**
  * Publication-only editorial pass. It never changes populations, counts,
  * comparators, priorities or evidence. Where richer wording needs historical
@@ -80,6 +95,8 @@ export function editorializeStatPackFindings<T extends FixtureResearchFinding>(f
   f=h2hCopy(f,ctx);
   f=compactWdl(f);
   f=seasonOpeningCopy(f);
+  f=proseNumbers(f);
+  f=cleanSheetCopy(f);
   return f as T;
  });
 }
