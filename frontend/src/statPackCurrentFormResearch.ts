@@ -23,6 +23,8 @@ const previousUnbeatenRunAtLeast=(xs:readonly FixtureResearchMatch[],target:numb
  return last;
 };
 
+type UnbeatenScope={label:string;population:FixtureResearchMatch[];historyLabel:string};
+
 /**
  * Active unbeaten-run research across natural, authoritative populations.
  *
@@ -46,13 +48,14 @@ export function researchActiveUnbeatenRuns(
  const competitionAway=exactCompetition.filter(m=>m.venue_type==='A');
  const atHomeGround=homeGround?matchesAtPhysicalStadium(chron.filter(m=>m.venue_type==='H'),homeGround):[];
  const competitionAtHomeGround=homeGround?matchesAtPhysicalStadium(exactCompetition.filter(m=>m.venue_type==='H'),homeGround):[];
- const scopes:{label:string;population:FixtureResearchMatch[]}[]=[
-  {label:'matches across all competitions',population:chron},
-  {label:`${competition} matches`,population:exactCompetition},
-  ...(homeGround?[{label:`matches at ${stadiumName(homeGround)}`,population:atHomeGround}]:[]),
-  {label:'away matches across all competitions',population:away},
-  ...(homeGround?[{label:`${competition} matches at ${stadiumName(homeGround)}`,population:competitionAtHomeGround}]:[]),
-  {label:`${competition} away matches`,population:competitionAway},
+ const homeName=homeGround?stadiumName(homeGround):null;
+ const scopes:UnbeatenScope[]=[
+  {label:'matches across all competitions',population:chron,historyLabel:'across all competitions'},
+  {label:`${competition} matches`,population:exactCompetition,historyLabel:`in the ${competition}`},
+  ...(homeGround&&homeName?[{label:`matches at ${homeName}`,population:atHomeGround,historyLabel:`at ${homeName}`}]:[]),
+  {label:'away matches across all competitions',population:away,historyLabel:'away from home across all competitions'},
+  ...(homeGround&&homeName?[{label:`${competition} matches at ${homeName}`,population:competitionAtHomeGround,historyLabel:`at ${homeName} in the ${competition}`}]:[]),
+  {label:`${competition} away matches`,population:competitionAway,historyLabel:`away from home in the ${competition}`},
  ];
  const findings:FixtureResearchFinding[]=[];
  const seenRuns=new Set<string>();
@@ -67,8 +70,8 @@ export function researchActiveUnbeatenRuns(
   const previous=previousUnbeatenRunAtLeast(scope.population,run.length,run.length);
   const years=previous?Math.max(0,Number(run.at(-1)!.match_date.slice(0,4))-Number(previous.match_date.slice(0,4))):null;
   const historical=previous
-   ?`, their longest unbeaten run in that scope since ${monthYear(previous.match_date)}`
-   :`, with no earlier unbeaten run of that length found in the recorded archive`;
+   ?`, their longest unbeaten run ${scope.historyLabel} since ${monthYear(previous.match_date)}`
+   :`, their longest recorded unbeaten run ${scope.historyLabel}`;
   findings.push({
    label:`Current Form · ${scope.label}`,
    text:`Leeds United are unbeaten in their last ${run.length} ${scope.label} (W${record.w} D${record.d})${historical}.`,
