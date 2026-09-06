@@ -40,7 +40,6 @@ const won=(m:FixtureResearchMatch)=>m.result==='Won';
 const seasonStart=(s:string|null)=>Number((s??'0').slice(0,4))||0;
 const wdl=(xs:FixtureResearchMatch[])=>({w:xs.filter(m=>m.result==='Won').length,d:xs.filter(m=>m.result==='Draw').length,l:xs.filter(m=>m.result==='Lost').length});
 const pct=(n:number,d:number)=>d?Math.round(n*100/d):0;
-const monthYear=(d:string)=>new Date(`${d}T00:00:00`).toLocaleDateString('en-GB',{month:'long',year:'numeric'});
 
 /**
  * Fixture-aware research families. These deliberately require authoritative
@@ -86,10 +85,7 @@ export function researchUpcomingFixture(
     }
    }
    const where=fixture.venue==='H'?'home':'away';
-   if(target>=2&&latest){
-    const action=target===2?`win back-to-back ${fixture.competition} ${where} matches`:`win ${target} consecutive ${fixture.competition} ${where} matches`;
-    add(`Manager · Consecutive ${fixture.venue==='H'?'Home':'Away'} Wins`,`${manager} could become the first Leeds manager to ${action} since ${latest.name} in ${monthYear(latest.date)}.`,target>=3?98:94,`${managerVenue.length} ${fixture.competition} ${where} matches under ${manager}; all previous Leeds managers compared; previous ${target}-win sequence completed ${latest.date}`,`manager-venue-run`,target>=3?'A':'B');
-   }
+   if(target>=2&&latest)add(`Manager · Consecutive ${fixture.venue==='H'?'Home':'Away'} Wins`,`${manager} can lead Leeds to ${target} consecutive ${fixture.competition} ${where} wins. The last Leeds manager to reach that sequence was ${latest.name} in ${latest.date.slice(0,4)}.`,target>=3?98:94,`${managerVenue.length} ${fixture.competition} ${where} matches under ${manager}; all previous Leeds managers compared`,`manager-venue-run`,target>=3?'A':'B');
   }
  }
 
@@ -121,6 +117,8 @@ export function researchUpcomingFixture(
   }
  }
 
+ // Opponent + fixture venue sequence. This keeps home/away history separate and
+ // only earns Grade A when the current run has a genuine historical comparator.
  const venueH2h=chron.filter(m=>scope(m)&&venue(m)&&m.opponent===fixture.opponent);
  let venueWinRun=0;
  for(let i=venueH2h.length-1;i>=0&&won(venueH2h[i]);i--)venueWinRun++;
@@ -133,6 +131,9 @@ export function researchUpcomingFixture(
   else if(lastAtTarget)add(`Opponent · ${fixture.venue==='H'?'Home':'Away'} Winning Sequence`,`Victory over ${fixture.opponent} would give Leeds ${target} consecutive ${fixture.competition} wins ${where} against them, a sequence they last reached in ${lastAtTarget.match_date.slice(0,4)}.`,96,`${venueH2h.length} ${fixture.competition} ${where} meetings with ${fixture.opponent} checked`,'opponent-venue-run');
  }
 
+ // Venue-conditioned unbeaten history against the upcoming opponent. Suppress the
+ // weaker unbeaten story when it is exactly the same run as the winning sequence;
+ // retain it when the unbeaten run genuinely extends beyond the winning run.
  let venueUnbeatenRun=0;
  for(let i=venueH2h.length-1;i>=0&&venueH2h[i].result!=='Lost';i--)venueUnbeatenRun++;
  if(venueUnbeatenRun>=2&&venueUnbeatenRun>venueWinRun){
@@ -144,6 +145,8 @@ export function researchUpcomingFixture(
   else if(lastAtTarget)add(`Opponent · ${fixture.venue==='H'?'Home':'Away'} Unbeaten Sequence`,`Avoiding defeat against ${fixture.opponent} would make it ${target} consecutive ${fixture.competition} meetings unbeaten ${where} against them, a sequence they last reached in ${lastAtTarget.match_date.slice(0,4)}.`,96,`${venueH2h.length} ${fixture.competition} ${where} meetings with ${fixture.opponent} checked`,'opponent-venue-unbeaten');
  }
 
+ // Negative exact-context risk: only promote a losing sequence once Leeds have
+ // already lost at least twice in succession in this opponent/competition/venue scope.
  let venueLossRun=0;
  for(let i=venueH2h.length-1;i>=0&&venueH2h[i].result==='Lost';i--)venueLossRun++;
  if(venueLossRun>=2){
@@ -155,6 +158,8 @@ export function researchUpcomingFixture(
   else if(lastAtTarget)add(`Opponent · ${fixture.venue==='H'?'Home':'Away'} Losing Sequence`,`Leeds are looking to avoid a ${target}th consecutive ${fixture.competition} defeat ${where} against ${fixture.opponent}, a losing sequence they last reached in ${lastAtTarget.match_date.slice(0,4)}.`,96,`${venueH2h.length} ${fixture.competition} ${where} meetings with ${fixture.opponent} checked; current losing run=${venueLossRun}`,'opponent-venue-losing-run');
  }
 
+ // Venue-conditioned scoring history against the upcoming opponent. The machine
+ // only promotes this when scoring in the next fixture creates a record or since comparator.
  let venueScoringRun=0;
  for(let i=venueH2h.length-1;i>=0&&venueH2h[i].leeds_score>0;i--)venueScoringRun++;
  if(venueScoringRun>=2){
@@ -166,6 +171,9 @@ export function researchUpcomingFixture(
   else if(lastAtTarget)add(`Opponent · ${fixture.venue==='H'?'Home':'Away'} Scoring Sequence`,`Scoring against ${fixture.opponent} would make it ${target} consecutive ${fixture.competition} meetings in which Leeds have found the net ${where} against them, a sequence they last reached in ${lastAtTarget.match_date.slice(0,4)}.`,95,`${venueH2h.length} ${fixture.competition} ${where} meetings with ${fixture.opponent} checked`,'opponent-venue-scoring');
  }
 
+ // Venue-conditioned scoring drought breaker. This is only promoted when Leeds
+ // have failed to score in at least three consecutive exact-context meetings, or
+ // have never scored in a sufficiently deep recorded sample.
  let venueScorelessRun=0;
  for(let i=venueH2h.length-1;i>=0&&venueH2h[i].leeds_score===0;i--)venueScorelessRun++;
  if(venueScorelessRun>=3){
@@ -178,6 +186,9 @@ export function researchUpcomingFixture(
   }
  }
 
+ // Two-goal scoring significance asks a different question from winning margin:
+ // Leeds only need to score 2+, regardless of the final result. Promote it only
+ // when the exact opponent/competition/venue history makes the event genuinely rare.
  if(venueH2h.length>=6){
   const twoGoalGames=venueH2h.filter(m=>m.leeds_score>=2);
   const lastTwoGoalGame=twoGoalGames.at(-1);
@@ -190,6 +201,8 @@ export function researchUpcomingFixture(
   }
  }
 
+ // Scoreline significance: only surface a multi-goal-win angle when the exact
+ // opponent/competition/venue history makes it a genuine first or long-awaited event.
  if(venueH2h.length>=5){
   const multiGoalWins=venueH2h.filter(m=>won(m)&&m.leeds_score-m.opponent_score>=2);
   const lastMultiGoalWin=multiGoalWins.at(-1);
@@ -202,6 +215,9 @@ export function researchUpcomingFixture(
   }
  }
 
+ // Emphatic scoreline significance is deliberately rarer than the 2+ family.
+ // Suppress it when the stronger 3+ fact would merely repeat the same first/since
+ // comparator already carried by the broader 2+ multi-goal-win family.
  if(venueH2h.length>=8){
   const multiGoalWins=venueH2h.filter(m=>won(m)&&m.leeds_score-m.opponent_score>=2);
   const lastMultiGoalWin=multiGoalWins.at(-1);
@@ -216,6 +232,9 @@ export function researchUpcomingFixture(
   }
  }
 
+ // Win-to-nil significance combines the result and clean-sheet requirements into
+ // one exact fixture condition. This is distinct from a clean-sheet sequence: a
+ // 0-0 does not qualify, and only a genuine first or long wait is promoted.
  if(venueH2h.length>=5){
   const winsToNil=venueH2h.filter(m=>won(m)&&m.opponent_score===0);
   const lastWinToNil=winsToNil.at(-1);
@@ -228,6 +247,9 @@ export function researchUpcomingFixture(
   }
  }
 
+ // Venue-conditioned clean-sheet history against the upcoming opponent.
+ // This is separate from the all-venue opponent sequence below: the fixture venue
+ // is part of the trigger, so home and away shutout histories can never contaminate each other.
  let venueCleanRun=0;
  for(let i=venueH2h.length-1;i>=0&&venueH2h[i].opponent_score===0;i--)venueCleanRun++;
  const venueCleanRunIds=venueCleanRun?venueH2h.slice(-venueCleanRun).map(m=>m.match_id):[];
@@ -240,6 +262,9 @@ export function researchUpcomingFixture(
   else if(lastAtTarget)add(`Opponent · ${fixture.venue==='H'?'Home':'Away'} Clean-Sheet Sequence`,`A clean sheet against ${fixture.opponent} would be Leeds' ${target}th consecutive ${fixture.competition} shutout ${where} against them, a sequence they last reached in ${lastAtTarget.match_date.slice(0,4)}.`,95,`${venueH2h.length} ${fixture.competition} ${where} meetings with ${fixture.opponent} checked`,'opponent-venue-clean-sheet');
  }
 
+ // First-goal outcome intelligence: recent form plus opponent-specific response.
+ // This is descriptive context, so it remains Grade B until a separate historical
+ // significance comparator proves a record/first/since angle.
  const scoped=chron.filter(scope);
  for(const state of ['Scored','Conceded'] as const){
   const eligible=scoped.filter(m=>m.first_goal===state);
@@ -263,6 +288,8 @@ export function researchUpcomingFixture(
   }
  }
 
+ // Historical significance for first-goal behaviour. Compare the current season
+ // at the exact same number of first-goal opportunities with every prior season.
  const priorSeasons=Array.from(new Set(scoped.filter(m=>seasonStart(m.season)<seasonStart(fixture.season)).map(m=>m.season).filter((s):s is string=>Boolean(s))));
  for(const state of ['Scored','Conceded'] as const){
   const now=currentSeason.filter(m=>m.first_goal===state);
@@ -281,6 +308,7 @@ export function researchUpcomingFixture(
    }
   }
 
+  // Opponent-specific unbeaten/winning sequence conditioned on who scored first.
   const h2h=scoped.filter(m=>m.opponent===fixture.opponent&&m.first_goal===state);
   let run=0;
   const qualifies=(m:FixtureResearchMatch)=>state==='Scored'?m.result==='Won':m.result!=='Lost';
@@ -297,6 +325,8 @@ export function researchUpcomingFixture(
   }
  }
 
+ // Clean-sheet intelligence: exact-stage season comparison plus opponent-specific
+ // sequence and win correlation. This uses final scores only, so it is archive-safe.
  if(currentSeason.length>=5){
   const stage=currentSeason.length,clean=currentSeason.filter(m=>m.opponent_score===0).length;
   const samples=priorSeasons.map(s=>{const x=scoped.filter(m=>m.season===s).slice(0,stage);return{s,x,clean:x.filter(m=>m.opponent_score===0).length}}).filter(v=>v.x.length===stage);
@@ -313,6 +343,9 @@ export function researchUpcomingFixture(
  for(let i=opponentMatches.length-1;i>=0&&opponentMatches[i].opponent_score===0;i--)cleanRun++;
  const opponentCleanRunIds=cleanRun?opponentMatches.slice(-cleanRun).map(m=>m.match_id):[];
  const sameTrailingCleanSheetRun=venueCleanRunIds.length===opponentCleanRunIds.length&&venueCleanRunIds.every((id,i)=>id===opponentCleanRunIds[i]);
+ // Only suppress the broader all-venue story when both families are backed by
+ // exactly the same trailing match IDs. If the all-venue run genuinely extends
+ // across the other venue, it remains a distinct historical finding.
  if(cleanRun>=1&&!sameTrailingCleanSheetRun){
   const target=cleanRun+1;
   let max=0,r=0,lastTarget:FixtureResearchMatch|null=null;
