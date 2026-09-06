@@ -1,5 +1,6 @@
 import type{FixtureResearchFinding,FixtureResearchMatch,UpcomingFixtureContext}from'./statPackFixtureResearch';
 import{researchActiveUnbeatenRuns,researchCurrentCompetitionForm}from'./statPackCurrentFormResearch';
+import{matchesAtPhysicalStadium}from'./stadiumIdentity';
 
 const won=(m:FixtureResearchMatch)=>m.result==='Won';
 const lost=(m:FixtureResearchMatch)=>m.result==='Lost';
@@ -7,6 +8,8 @@ const league=(m:FixtureResearchMatch)=>/Premier League|Championship|Division One
 const margin=(m:FixtureResearchMatch)=>m.leeds_score-m.opponent_score;
 const seasonYear=(s:string|null)=>Number((s??'0').slice(0,4))||0;
 const monthYear=(d:string)=>new Date(`${d}T00:00:00`).toLocaleDateString('en-GB',{month:'long',year:'numeric'});
+const wdl=(xs:readonly FixtureResearchMatch[])=>({w:xs.filter(m=>m.result==='Won').length,d:xs.filter(m=>m.result==='Draw').length,l:xs.filter(m=>m.result==='Lost').length});
+const goals=(xs:readonly FixtureResearchMatch[])=>({gf:xs.reduce((n,m)=>n+m.leeds_score,0),ga:xs.reduce((n,m)=>n+m.opponent_score,0)});
 
 /** Gold research families that turn a fixture fact into historical context.
  * All inputs are LUFC database rows; this module performs no external lookup.
@@ -19,6 +22,30 @@ export function researchHistoricalFixtureContext(matches:FixtureResearchMatch[],
  const competitionVersus=versus.filter(m=>m.competition===fixture.competition);
  const leagueVersus=versus.filter(league);
  const venueLeague=leagueVersus.filter(m=>m.venue_type===fixture.venue);
+
+ // Foundational away-ground research. This deliberately uses physical-stadium
+ // identity across all competitions, so verified venue renames cannot split the
+ // history. The wording adapts: long droughts lead with the last win, while a
+ // genuinely positive recent record leads with the successful run.
+ if(fixture.venue==='A'&&fixture.stadium){
+  const visits=matchesAtPhysicalStadium(chron.filter(m=>m.venue_type==='A'),fixture.stadium);
+  if(visits.length>=4){
+   const recent=visits.slice(-4),recentRecord=wdl(recent),recentGoals=goals(recent);
+   const lastWin=[...visits].reverse().find(won);
+   if(recentRecord.w>=2){
+    add('Stadium History · Recent Visits',`Leeds United have won ${recentRecord.w} of their last four visits to ${fixture.stadium} across all competitions (W${recentRecord.w} D${recentRecord.d} L${recentRecord.l}), scoring ${recentGoals.gf} goals and conceding ${recentGoals.ga}.`,98,`${visits.length} away matches at the same physical stadium checked across verified venue-name aliases; recent IDs ${recent.map(m=>m.match_id).join(', ')}`,'stadium-away-history');
+   }else if(lastWin){
+    const since=visits.filter(m=>m.match_date>lastWin.match_date);
+    if(since.length>=4&&since.every(m=>!won(m))){
+     const r=wdl(since);
+     add('Stadium History · Last Win',`Leeds United are winless on their last ${since.length} visits to ${fixture.stadium} across all competitions (D${r.d} L${r.l}), since a ${lastWin.leeds_score}-${lastWin.opponent_score} ${lastWin.competition} victory in ${monthYear(lastWin.match_date)}.`,100,`${visits.length} away matches at the same physical stadium checked across verified venue-name aliases; last win match ${lastWin.match_id}; subsequent visit IDs ${since.map(m=>m.match_id).join(', ')}`,'stadium-away-history');
+    }
+   }else if(visits.length>=5){
+    const r=wdl(visits);
+    add('Stadium History · First Win',`Leeds United are yet to win at ${fixture.stadium} across all competitions, with their ${visits.length} recorded visits returning D${r.d} L${r.l}.`,100,`${visits.length} away matches at the same physical stadium checked across verified venue-name aliases; no Leeds win found`,'stadium-away-history');
+   }
+  }
+ }
 
  // Opponent result magnitude: contextualise the most recent meeting against the
  // entire earlier opponent history instead of merely repeating its scoreline.
@@ -45,7 +72,7 @@ export function researchHistoricalFixtureContext(matches:FixtureResearchMatch[],
   }
   if(previousCompletion){
    const years=Math.max(0,seasonYear(fixture.season)-Number(previousCompletion.match_date.slice(0,4)));
-   if(years>=5)add(`Opponent History · Consecutive ${fixture.venue==='H'?'Home':'Away'} League Wins`,`Leeds are looking to record ${target===2?'consecutive':`${target} consecutive`} ${fixture.venue==='H'?'home':'away'} league wins against ${fixture.opponent} for the first time since ${previousCompletion.match_date.slice(0,4)}.`,years>=25?100:years>=10?99:97,`${venueLeague.length} ${fixture.venue==='H'?'home':'away'} league meetings checked; previous ${target}-win sequence completed in match ${previousCompletion.match_id}`,'opponent-league-win-run');
+   if(years>=5)add(`Opponent History · Consecutive ${fixture.venue==='H'?'Home':'Away'} League Wins`,`Leeds are looking to record ${target===2?'back-to-back':`${target} consecutive`} ${fixture.venue==='H'?'home':'away'} league wins against ${fixture.opponent} for the first time since ${monthYear(previousCompletion.match_date)}.`,years>=25?100:years>=10?99:97,`${venueLeague.length} ${fixture.venue==='H'?'home':'away'} league meetings checked; previous ${target}-win sequence completed in match ${previousCompletion.match_id}`,'opponent-league-win-run');
   }
  }
 
@@ -59,11 +86,12 @@ export function researchHistoricalFixtureContext(matches:FixtureResearchMatch[],
   for(const m of competitionVersus.slice(0,-winlessRun)){
    if(!won(m)){run++;historicalMax=Math.max(historicalMax,run);if(run>=winlessRun)lastAtLeast=m}else run=0;
   }
+  const current=competitionVersus.slice(-winlessRun),r=wdl(current);
   if(winlessRun>historicalMax){
-   add('Opponent History · Winless Run',`Leeds are winless in their last ${winlessRun} ${fixture.competition} meetings with ${fixture.opponent}, their longest such run in the recorded history of this fixture.`,100,`${competitionVersus.length} ${fixture.competition} meetings checked; current winless run=${winlessRun}; previous maximum=${historicalMax}`,'opponent-competition-winless-run');
+   add('Opponent History · Winless Run',`Leeds United are winless in their last ${winlessRun} ${fixture.competition} meetings with ${fixture.opponent} (D${r.d} L${r.l}), their longest run without a win against ${fixture.opponent} in the competition's history.`,100,`${competitionVersus.length} ${fixture.competition} meetings checked; current winless run=${winlessRun}; previous maximum=${historicalMax}; current IDs ${current.map(m=>m.match_id).join(', ')}`,'opponent-competition-winless-run');
   }else if(lastAtLeast){
    const years=Math.max(0,seasonYear(fixture.season)-Number(lastAtLeast.match_date.slice(0,4)));
-   if(years>=5)add('Opponent History · Winless Run',`Leeds are winless in their last ${winlessRun} ${fixture.competition} meetings with ${fixture.opponent}, their longest run without a win in this fixture since ${lastAtLeast.match_date.slice(0,4)}.`,years>=25?100:years>=10?99:97,`${competitionVersus.length} ${fixture.competition} meetings checked; previous run of at least ${winlessRun} ended in match ${lastAtLeast.match_id}`,'opponent-competition-winless-run');
+   if(years>=5)add('Opponent History · Winless Run',`Leeds United are winless in their last ${winlessRun} ${fixture.competition} meetings with ${fixture.opponent} (D${r.d} L${r.l}), their longest run without a win against them since ${monthYear(lastAtLeast.match_date)}.`,years>=25?100:years>=10?99:97,`${competitionVersus.length} ${fixture.competition} meetings checked; previous run of at least ${winlessRun} ended in match ${lastAtLeast.match_id}; current IDs ${current.map(m=>m.match_id).join(', ')}`,'opponent-competition-winless-run');
   }
  }
 
