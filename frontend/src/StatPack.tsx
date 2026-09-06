@@ -169,7 +169,7 @@ export default function StatPack(){
   }
 
   // Manager versus upcoming opponent: exact-stage win pace, last victory and historical W/L rankings.
-  if(manager){
+  if(manager&&LEAGUE.has(fixtureCompetition)){
    const ownVs=chron.filter(m=>m.leeds_manager===manager&&m.opponent===opponent&&league(m));
    const managerNames=Array.from(new Set(chron.map(m=>m.leeds_manager).filter((n):n is string=>Boolean(n))));
    const currentWins=ownVs.filter(m=>m.result==='Won').length,nextN=ownVs.length+1,targetWins=currentWins+1;
