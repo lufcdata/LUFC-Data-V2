@@ -61,9 +61,11 @@ export function researchHistoricalFixtureContext(matches:FixtureResearchMatch[],
   if(won(reverse)){
    const previous=[...priorSeasons].reverse().find(s=>completed(s,true));
    if(previous){const years=seasonYear(fixture.season)-seasonYear(previous);if(years>=5)add('League Double · Leeds',`Leeds could complete a league double over ${fixture.opponent} for the first time since the ${previous} season.`,years>=25?100:years>=10?99:97,`${priorSeasons.length} previous league seasons against ${fixture.opponent} checked; previous Leeds double: ${previous}`,'league-double');}
+   else if(priorSeasons.length>=5)add('League Double · Leeds',`Leeds could complete a league double over ${fixture.opponent} for the first time in their recorded league history.`,100,`${priorSeasons.length} previous league seasons against ${fixture.opponent} checked; no Leeds home-and-away league double found`,'league-double');
   }else if(lost(reverse)){
    const previous=[...priorSeasons].reverse().find(s=>completed(s,false));
    if(previous){const years=seasonYear(fixture.season)-seasonYear(previous);if(years>=5)add('League Double · Against Leeds',`${fixture.opponent} could complete a league double over Leeds for the first time since the ${previous} season.`,years>=25?100:years>=10?99:97,`${priorSeasons.length} previous league seasons against ${fixture.opponent} checked; previous double against Leeds: ${previous}`,'league-double-against');}
+   else if(priorSeasons.length>=5)add('League Double · Against Leeds',`${fixture.opponent} could complete a league double over Leeds for the first time in the recorded league history of the fixture.`,100,`${priorSeasons.length} previous league seasons against ${fixture.opponent} checked; no opponent home-and-away league double found`,'league-double-against');
   }
  }
  return out;
