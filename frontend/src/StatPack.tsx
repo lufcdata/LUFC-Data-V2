@@ -101,7 +101,7 @@ export default function StatPack(){
    {label:'Scoring Drought',fn:m=>m.leeds_score===0,min:2,noun:'league games without scoring'},
    {label:'Clean-Sheet Run',fn:m=>m.opponent_score===0,min:2,noun:'league clean sheets'}
   ];
-  for(const s of seq){const run=tail(leagueMatches,s.fn);if(run<s.min)continue;const target=run+1,prev=previousRun(leagueMatches,s.fn,target,run),lead=s.negative?`Leeds are looking to avoid ${target} consecutive league defeats.`:`Leeds can make it ${target} consecutive ${s.noun}.`;add(s.label,`${lead} ${prev?`The last Leeds side to reach a sequence of ${target} completed that run in ${fmt(prev.match_date)}.`:`No previous Leeds side in the recorded league archive has reached that sequence.`}`,prev?96:98,evidence(leagueMatches),`team-${s.label}`)}
+  if(LEAGUE.has(fixtureCompetition))for(const s of seq){const run=tail(leagueMatches,s.fn);if(run<s.min)continue;const target=run+1,prev=previousRun(leagueMatches,s.fn,target,run),lead=s.negative?`Leeds are looking to avoid ${target} consecutive league defeats.`:`Leeds can make it ${target} consecutive ${s.noun}.`;add(s.label,`${lead} ${prev?`The last Leeds side to reach a sequence of ${target} completed that run in ${fmt(prev.match_date)}.`:`No previous Leeds side in the recorded league archive has reached that sequence.`}`,prev?96:98,evidence(leagueMatches),`team-${s.label}`)}
   // All-venue/all-competition opponent streaks are fallback research only. Once
   // authoritative competition + H/A context exists, researchUpcomingFixture owns
   // those opponent sequences so the broader legacy population cannot compete.
