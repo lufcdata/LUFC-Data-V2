@@ -15,6 +15,7 @@ export function researchHistoricalFixtureContext(matches:FixtureResearchMatch[],
  const out:FixtureResearchFinding[]=[];
  const add=(label:string,text:string,priority:number,evidence:string,family:string)=>out.push({label,text,priority,evidence,family,grade:'A'});
  const versus=chron.filter(m=>m.opponent===fixture.opponent);
+ const competitionVersus=versus.filter(m=>m.competition===fixture.competition);
  const leagueVersus=versus.filter(league);
  const venueLeague=leagueVersus.filter(m=>m.venue_type===fixture.venue);
 
@@ -44,6 +45,24 @@ export function researchHistoricalFixtureContext(matches:FixtureResearchMatch[],
   if(previousCompletion){
    const years=Math.max(0,seasonYear(fixture.season)-Number(previousCompletion.match_date.slice(0,4)));
    if(years>=5)add(`Opponent History · Consecutive ${fixture.venue==='H'?'Home':'Away'} League Wins`,`Leeds are looking to record ${target===2?'consecutive':`${target} consecutive`} ${fixture.venue==='H'?'home':'away'} league wins against ${fixture.opponent} for the first time since ${previousCompletion.match_date.slice(0,4)}.`,years>=25?100:years>=10?99:97,`${venueLeague.length} ${fixture.venue==='H'?'home':'away'} league meetings checked; previous ${target}-win sequence completed in match ${previousCompletion.match_id}`,'opponent-league-win-run');
+  }
+ }
+
+ // All-venue winless sequence in the selected competition. This deliberately
+ // keeps competition exact while allowing home and away meetings to form one
+ // opponent narrative, matching publication language such as "last six meetings".
+ let winlessRun=0;
+ for(let i=competitionVersus.length-1;i>=0&&!won(competitionVersus[i]);i--)winlessRun++;
+ if(winlessRun>=3){
+  let run=0,historicalMax=0,lastAtLeast:FixtureResearchMatch|null=null;
+  for(const m of competitionVersus.slice(0,-winlessRun)){
+   if(!won(m)){run++;historicalMax=Math.max(historicalMax,run);if(run>=winlessRun)lastAtLeast=m}else run=0;
+  }
+  if(winlessRun>historicalMax){
+   add('Opponent History · Winless Run',`Leeds are winless in their last ${winlessRun} ${fixture.competition} meetings with ${fixture.opponent}, their longest such run in the recorded history of this fixture.`,100,`${competitionVersus.length} ${fixture.competition} meetings checked; current winless run=${winlessRun}; previous maximum=${historicalMax}`,'opponent-competition-winless-run');
+  }else if(lastAtLeast){
+   const years=Math.max(0,seasonYear(fixture.season)-Number(lastAtLeast.match_date.slice(0,4)));
+   if(years>=5)add('Opponent History · Winless Run',`Leeds are winless in their last ${winlessRun} ${fixture.competition} meetings with ${fixture.opponent}, their longest run without a win in this fixture since ${lastAtLeast.match_date.slice(0,4)}.`,years>=25?100:years>=10?99:97,`${competitionVersus.length} ${fixture.competition} meetings checked; previous run of at least ${winlessRun} ended in match ${lastAtLeast.match_id}`,'opponent-competition-winless-run');
   }
  }
 
