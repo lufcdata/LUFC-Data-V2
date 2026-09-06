@@ -16,6 +16,7 @@ import './PlayerMatchLog.css';
 import './PlayerPageChart.css';
 import './MobilePolish.css';
 import './LightTheme.css';
+import './StatPack.css';
 
 class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
   state = { error: null as Error | null };
