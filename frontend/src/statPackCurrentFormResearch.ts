@@ -5,6 +5,18 @@ const SUPPORTED=new Set(['Premier League','Championship','Division One','Divisio
 const monthYear=(d:string)=>new Date(`${d}T00:00:00`).toLocaleDateString('en-GB',{month:'long',year:'numeric'});
 const wdl=(xs:readonly FixtureResearchMatch[])=>({w:xs.filter(m=>m.result==='Won').length,d:xs.filter(m=>m.result==='Draw').length,l:xs.filter(m=>m.result==='Lost').length});
 
+/** Return the longest contiguous spell containing a qualifying historical window
+ * while preserving its low-defeat ceiling. This turns a 12-game comparator into
+ * the larger historical story it belonged to (for example, one defeat in 27).
+ */
+const expandLowDefeatSpell=(scoped:readonly FixtureResearchMatch[],windowEnd:number,maxLosses:number)=>{
+ let start=windowEnd-FORM_WINDOW+1,end=windowEnd,losses=wdl(scoped.slice(start,end+1)).l;
+ while(start>0){const extra=scoped[start-1].result==='Lost'?1:0;if(losses+extra>maxLosses)break;start--;losses+=extra}
+ while(end<scoped.length-1){const extra=scoped[end+1].result==='Lost'?1:0;if(losses+extra>maxLosses)break;end++;losses+=extra}
+ const matches=scoped.slice(start,end+1);
+ return{start,end,matches,record:wdl(matches)};
+};
+
 /**
  * Opponent-independent current-form research.
  *
@@ -15,6 +27,8 @@ const wdl=(xs:readonly FixtureResearchMatch[])=>({w:xs.filter(m=>m.result==='Won
  * Consecutive overlapping windows that all meet the current low-defeat standard
  * are treated as one form regime. The historical comparator is the previous
  * qualifying regime, not merely the immediately preceding overlapping window.
+ * Once found, that comparator is expanded to the full contiguous low-defeat
+ * spell so the machine keeps digging for the stronger historical story.
  */
 export function researchCurrentCompetitionForm(
  matches:readonly FixtureResearchMatch[],
@@ -34,11 +48,11 @@ export function researchCurrentCompetitionForm(
  let regimeStartEnd=scoped.length-1;
  while(regimeStartEnd>FORM_WINDOW-1&&qualifies(regimeStartEnd-1))regimeStartEnd--;
 
- let previous:{end:FixtureResearchMatch;record:ReturnType<typeof wdl>}|null=null;
+ let previous:{endIndex:number;end:FixtureResearchMatch;record:ReturnType<typeof wdl>}|null=null;
  for(let end=regimeStartEnd-1;end>=FORM_WINDOW-1;end--){
   const window=scoped.slice(end-FORM_WINDOW+1,end+1);
   const record=wdl(window);
-  if(record.l<=now.l){previous={end:scoped[end],record};break;}
+  if(record.l<=now.l){previous={endIndex:end,end:scoped[end],record};break;}
  }
 
  const evidence=`Last ${FORM_WINDOW} ${competition} matches: ${recent.map(m=>m.match_id).join(', ')}; current qualifying rolling-window regime begins with window ending ${scoped[regimeStartEnd].match_date}; earlier rolling ${FORM_WINDOW}-match ${competition} windows checked`;
@@ -60,13 +74,25 @@ export function researchCurrentCompetitionForm(
  const years=Math.max(0,currentYear-previousYear);
  if(years<5)return[];
 
+ const historicalSpell=expandLowDefeatSpell(scoped,previous.endIndex,now.l);
+ const spellRecord=historicalSpell.record;
+ const expanded=historicalSpell.matches.length>FORM_WINDOW;
+ const historicalContext=expanded
+  ?now.l===0
+   ?` That previous spell ultimately stretched to ${historicalSpell.matches.length} unbeaten ${competition} games (W${spellRecord.w}, D${spellRecord.d}).`
+   :` That previous spell formed part of a ${historicalSpell.matches.length}-game ${competition} run in which Leeds lost just ${spellRecord.l===1?'once':spellRecord.l+' times'} (W${spellRecord.w}, D${spellRecord.d}, L${spellRecord.l}).`
+  :'';
+ const spellEvidence=expanded
+  ?`; expanded historical low-defeat spell ${scoped[historicalSpell.start].match_date}–${scoped[historicalSpell.end].match_date}: ${historicalSpell.matches.length} matches (W${spellRecord.w} D${spellRecord.d} L${spellRecord.l}), IDs ${historicalSpell.matches.map(m=>m.match_id).join(', ')}`
+  :'';
+
  return[{
   label:'Current Form · Low Defeats',
-  text:now.l===0
+  text:(now.l===0
    ?`Leeds are unbeaten in their last ${FORM_WINDOW} ${competition} games (W${now.w}, D${now.d}), their first ${FORM_WINDOW}-game unbeaten spell in the competition since ${monthYear(previous.end.match_date)}.`
-   :`Leeds have lost just one of their last ${FORM_WINDOW} ${competition} games (W${now.w}, D${now.d}, L${now.l}), their fewest defeats across a ${FORM_WINDOW}-game spell in the competition since ${monthYear(previous.end.match_date)}.`,
+   :`Leeds have lost just one of their last ${FORM_WINDOW} ${competition} games (W${now.w}, D${now.d}, L${now.l}), their fewest defeats across a ${FORM_WINDOW}-game spell in the competition since ${monthYear(previous.end.match_date)}.`)+historicalContext,
   priority:years>=25?100:years>=10?99:97,
-  evidence:`${evidence}; previous qualifying regime last contained a window ending ${previous.end.match_date} at match ${previous.end.match_id} (W${previous.record.w} D${previous.record.d} L${previous.record.l})`,
+  evidence:`${evidence}; previous qualifying regime last contained a window ending ${previous.end.match_date} at match ${previous.end.match_id} (W${previous.record.w} D${previous.record.d} L${previous.record.l})${spellEvidence}`,
   family:'current-form-low-defeats',
   grade:'A',
  }];
