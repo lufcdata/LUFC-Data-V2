@@ -1,6 +1,7 @@
 import React,{useEffect,useMemo,useState}from'react';
 import{supabase,supabaseConfigError}from'./supabase';
 import{researchUpcomingFixture}from'./statPackFixtureResearch';
+import{researchPlayerManagerAppearanceMilestones}from'./statPackCareerMilestoneResearch';
 import{matchesExactFixtureScope}from'./statPackFixtureScope';
 import{canonicalStadiumKey,matchesAtPhysicalStadium}from'./stadiumIdentity';
 
@@ -72,6 +73,7 @@ export default function StatPack(){
   const add=(label:string,text:string,priority:number,e:string,family:string,grade:'A'|'B'='A')=>out.push({label,text,priority,evidence:e,family,grade});
 
   if(fixtureCompetition&&fixtureVenue&&fixtureSeason){for(const f of researchUpcomingFixture(chron,{opponent,competition:fixtureCompetition,venue:fixtureVenue,stadium:fixtureStadium||null,season:fixtureSeason,manager})){add(f.label,f.text,f.priority,f.evidence,f.family,f.grade)}}
+  if(fixtureSeason===current?.season){for(const f of researchPlayerManagerAppearanceMilestones(chron,pms,players,manager)){add(f.label,f.text,f.priority,f.evidence,f.family,f.grade)}}
 
   const appsBy=new Map<number,Match[]>(),goalsByPlayer=new Map<number,Goal[]>(),assistsByPlayer=new Map<number,Goal[]>(),goalMatchesByPlayer=new Map<number,Set<number>>(),assistMatchesByPlayer=new Map<number,Set<number>>();
   for(const pm of pms){const m=matchById.get(pm.match_id);if(!m)continue;const xs=appsBy.get(pm.player_id)??[];xs.push(m);appsBy.set(pm.player_id,xs)}
