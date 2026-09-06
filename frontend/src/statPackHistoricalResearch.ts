@@ -18,7 +18,8 @@ const MANAGER_MILESTONES=[50,100,150,200,250,300,400,500];
  */
 export function researchHistoricalFixtureContext(matches:FixtureResearchMatch[],fixture:UpcomingFixtureContext):FixtureResearchFinding[]{
  const chron=[...matches].sort((a,b)=>a.match_date.localeCompare(b.match_date)||a.match_id-b.match_id);
- const out:FixtureResearchFinding[]=[...researchActiveUnbeatenRuns(chron,fixture.competition),...researchCurrentCompetitionForm(chron,fixture.competition),...researchLondonAwayContext(chron,fixture)];
+ const activeUnbeaten=researchActiveUnbeatenRuns(chron,fixture.competition).filter(f=>fixture.venue==='A'?!f.family.includes('-matches-at-'):!f.family.includes('-away-'));
+ const out:FixtureResearchFinding[]=[...activeUnbeaten,...researchCurrentCompetitionForm(chron,fixture.competition),...researchLondonAwayContext(chron,fixture)];
  const add=(label:string,text:string,priority:number,evidence:string,family:string)=>out.push({label,text,priority,evidence,family,grade:'A'});
  const versus=chron.filter(m=>m.opponent===fixture.opponent);
  const competitionVersus=versus.filter(m=>m.competition===fixture.competition);
