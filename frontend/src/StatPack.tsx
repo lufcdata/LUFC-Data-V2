@@ -108,16 +108,16 @@ export default function StatPack(){
   if(!(fixtureCompetition&&fixtureVenue)){for(const s of seq){const run=tail(h2h,s.fn);if(run<Math.max(2,s.min-1))continue;const target=run+1,prev=previousRun(h2h,s.fn,target,run);const action=s.negative?`Leeds are looking to avoid a ${target}th consecutive defeat against ${opponent}.`:`Leeds can extend their current ${run}-match ${s.label.toLowerCase()} against ${opponent} to ${target}.`;add(`Opponent · ${s.label}`,`${action} ${prev?`The last equivalent sequence in this fixture was completed in ${fmt(prev.match_date)}.`:`It would be the first such sequence in the recorded history of this fixture.`}`,prev?95:97,evidence(h2h),`h2h-${s.label}`)}}
 
   // Exact-scope season-start comparators.
-  if(current?.season){
+  if(fixtureSeason){
    const scopes=[{name:'all competitions',filter:(_m:Match)=>true},{name:'league',filter:league},{name:'Premier League',filter:(m:Match)=>m.competition==='Premier League'}];
    for(const scope of scopes){
-    const now=chron.filter(m=>m.season===current.season&&scope.filter(m)),stage=now.length;
+    const now=chron.filter(m=>m.season===fixtureSeason&&scope.filter(m)),stage=now.length;
     if(stage<3||stage>20)continue;
-    const seasons=Array.from(new Set(chron.filter(m=>seasonStart(m.season)<seasonStart(current.season)).map(m=>m.season).filter((s):s is string=>Boolean(s))));
+    const seasons=Array.from(new Set(chron.filter(m=>seasonStart(m.season)<seasonStart(fixtureSeason)).map(m=>m.season).filter((s):s is string=>Boolean(s))));
     const samples=seasons.map(s=>{const x=chron.filter(m=>m.season===s&&scope.filter(m)).slice(0,stage);return{s,x,w:x.filter(m=>m.result==='Won').length,l:x.filter(m=>m.result==='Lost').length,gf:x.reduce((a,m)=>a+m.leeds_score,0),ga:x.reduce((a,m)=>a+m.opponent_score,0)}}).filter(x=>x.x.length===stage);
     if(samples.length<8)continue;
     const w=now.filter(m=>m.result==='Won').length,l=now.filter(m=>m.result==='Lost').length,gf=now.reduce((a,m)=>a+m.leeds_score,0),ga=now.reduce((a,m)=>a+m.opponent_score,0),maxW=Math.max(...samples.map(x=>x.w)),maxL=Math.max(...samples.map(x=>x.l)),minGA=Math.min(...samples.map(x=>x.ga));
-    if(w>maxW)add('Historic Start',`Leeds' ${w} wins from their opening ${stage} ${scope.name} matches of ${current.season} are their most at this stage of a campaign in the recorded archive.`,99,`${samples.length} previous seasons compared at the same ${stage}-match stage`,'season-stage');
+    if(w>maxW)add('Historic Start',`Leeds' ${w} wins from their opening ${stage} ${scope.name} matches of ${fixtureSeason} are their most at this stage of a campaign in the recorded archive.`,99,`${samples.length} previous seasons compared at the same ${stage}-match stage`,'season-stage');
     else{const last=[...samples].reverse().find(x=>x.w>=w);if(w>=4&&last)add('At This Stage',`Leeds have won ${w} of their opening ${stage} ${scope.name} matches this season; the last Leeds side with at least as many wins at this stage was ${last.s}.`,91,`${samples.length} previous seasons compared`,'season-stage')}
     if(l>=5&&l>=maxL){const last=[...samples].reverse().find(x=>x.l>=l);add('Historic Start · Defeats',`Leeds have lost ${l} of their opening ${stage} ${scope.name} matches, their ${l>maxL?'most':'joint-most'} at this stage${last?` and a total last matched in ${last.s}`:''}.`,96,`${samples.length} previous seasons compared`,'season-stage-defeats')}
     if(ga<=minGA&&stage>=5)add('Defensive Start',`Leeds have conceded ${ga} goals through their opening ${stage} ${scope.name} matches, the fewest at this stage of any campaign in the recorded archive.`,96,`${samples.length} previous seasons compared`,'season-stage-defence');
