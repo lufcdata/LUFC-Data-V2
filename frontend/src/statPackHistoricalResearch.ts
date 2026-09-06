@@ -10,6 +10,7 @@ const seasonYear=(s:string|null)=>Number((s??'0').slice(0,4))||0;
 const monthYear=(d:string)=>new Date(`${d}T00:00:00`).toLocaleDateString('en-GB',{month:'long',year:'numeric'});
 const wdl=(xs:readonly FixtureResearchMatch[])=>({w:xs.filter(m=>m.result==='Won').length,d:xs.filter(m=>m.result==='Draw').length,l:xs.filter(m=>m.result==='Lost').length});
 const goals=(xs:readonly FixtureResearchMatch[])=>({gf:xs.reduce((n,m)=>n+m.leeds_score,0),ga:xs.reduce((n,m)=>n+m.opponent_score,0)});
+const MANAGER_MILESTONES=[50,100,150,200,250,300,400,500];
 
 /** Gold research families that turn a fixture fact into historical context.
  * All inputs are LUFC database rows; this module performs no external lookup.
@@ -22,6 +23,27 @@ export function researchHistoricalFixtureContext(matches:FixtureResearchMatch[],
  const competitionVersus=versus.filter(m=>m.competition===fixture.competition);
  const leagueVersus=versus.filter(league);
  const venueLeague=leagueVersus.filter(m=>m.venue_type===fixture.venue);
+
+ // Manager matches-in-charge milestones across all competitions. The selected
+ // upcoming fixture supplies the current manager, while the archive determines
+ // both the live count and the most recent previous manager/head coach to reach
+ // the same landmark. Nothing is hard-coded to a particular manager or era.
+ if(fixture.manager){
+  const currentManagerMatches=chron.filter(m=>m.leeds_manager===fixture.manager);
+  const target=MANAGER_MILESTONES.find(n=>currentManagerMatches.length===n-1);
+  if(target){
+   const managers=Array.from(new Set(chron.map(m=>m.leeds_manager).filter((n):n is string=>Boolean(n)&&n!==fixture.manager)));
+   const previous=managers.map(name=>{
+    const xs=chron.filter(m=>m.leeds_manager===name);
+    return xs.length>=target?{name,match:xs[target-1]}:null;
+   }).filter((x):x is {name:string;match:FixtureResearchMatch}=>Boolean(x)).sort((a,b)=>a.match.match_date.localeCompare(b.match.match_date)||a.match.match_id-b.match.match_id).at(-1);
+   if(previous){
+    add('Manager · Matches in Charge',`${fixture.manager} is set to become the first manager or head coach to reach ${target} matches in charge of Leeds United across all competitions since ${previous.name} in ${monthYear(previous.match.match_date)}.`,100,`${currentManagerMatches.length} completed matches under ${fixture.manager}; previous managers/head coaches compared across all competitions; ${previous.name}'s ${target}th match was ${previous.match.match_id} on ${previous.match.match_date}`,'manager-matches-milestone');
+   }else{
+    add('Manager · Matches in Charge',`${fixture.manager} is set to reach ${target} matches in charge of Leeds United across all competitions, with no earlier manager or head coach found at that landmark in the recorded archive.`,100,`${currentManagerMatches.length} completed matches under ${fixture.manager}; all previous managers/head coaches compared across all competitions`,'manager-matches-milestone');
+   }
+  }
+ }
 
  // Foundational away-ground research. This deliberately uses physical-stadium
  // identity across all competitions, so verified venue renames cannot split the
