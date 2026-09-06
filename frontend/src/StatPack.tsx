@@ -68,7 +68,7 @@ export default function StatPack(){
   const activeIds=players.filter(p=>p.active).map(p=>p.player_id);
   const h2h=chron.filter(m=>m.opponent===opponent),leagueH2h=h2h.filter(league),leagueMatches=chron.filter(league);
   const exactFixtureH2h=fixtureCompetition&&fixtureVenue?matchesExactFixtureScope(chron,{opponent,competition:fixtureCompetition,venue:fixtureVenue}):[];
-  const current=chron.at(-1),manager=[...chron].reverse().find(m=>m.leeds_manager)?.leeds_manager??null,out:Stat[]=[];
+  const current=chron.at(-1),manager=[...chron].reverse().find(m=>m.season===fixtureSeason&&m.leeds_manager)?.leeds_manager??null,out:Stat[]=[];
   const add=(label:string,text:string,priority:number,e:string,family:string,grade:'A'|'B'='A')=>out.push({label,text,priority,evidence:e,family,grade});
 
   if(fixtureCompetition&&fixtureVenue&&fixtureSeason){for(const f of researchUpcomingFixture(chron,{opponent,competition:fixtureCompetition,venue:fixtureVenue,stadium:fixtureStadium||null,season:fixtureSeason,manager})){add(f.label,f.text,f.priority,f.evidence,f.family,f.grade)}}
