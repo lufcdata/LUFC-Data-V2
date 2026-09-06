@@ -1,5 +1,6 @@
 import type{FixtureResearchFinding,FixtureResearchMatch,UpcomingFixtureContext}from'./statPackFixtureResearch';
 import{researchCompetitionFirstWin}from'./statPackCompetitionFirstWinResearch';
+import{researchOpponentAllCompetitionHistory}from'./statPackOpponentHistoryResearch';
 
 const words=(n:number)=>['zero','one','two','three','four','five','six','seven','eight','nine','ten'][n]??String(n);
 const ordinalWords=(n:number)=>['zeroth','first','second','third','fourth','fifth','sixth','seventh','eighth','ninth','tenth'][n]??`${n}th`;
@@ -68,7 +69,7 @@ const seasonOpeningCopy=(finding:FixtureResearchFinding)=>{
 };
 
 const proseNumbers=(finding:FixtureResearchFinding)=>{
- if(finding.family==='opponent-competition-winless-run'||finding.family==='stadium-away-history'||finding.family.startsWith('current-unbeaten-')){
+ if(finding.family==='opponent-competition-winless-run'||finding.family==='stadium-away-history'||finding.family==='opponent-all-comps-last-win'||finding.family.startsWith('current-unbeaten-')){
   return{...finding,text:finding.text.replace(/\blast (\d+)\b/g,(_m,n)=>`last ${words(Number(n))}`)};
  }
  return finding;
@@ -87,7 +88,7 @@ const cleanSheetCopy=(finding:FixtureResearchFinding)=>{
  * derived only from the LUFC database rows supplied by the Stat Pack.
  */
 export function editorializeStatPackFindings<T extends FixtureResearchFinding>(findings:readonly T[],ctx:StatPackEditorialContext):T[]{
- const researched:FixtureResearchFinding[]=[...findings,...researchCompetitionFirstWin(ctx.matches,ctx.fixture)];
+ const researched:FixtureResearchFinding[]=[...findings,...researchCompetitionFirstWin(ctx.matches,ctx.fixture),...(ctx.fixture?researchOpponentAllCompetitionHistory(ctx.matches,ctx.fixture):[])];
  return researched.map(original=>{
   let f:FixtureResearchFinding=original;
   f=managerVenueCopy(f,ctx);
