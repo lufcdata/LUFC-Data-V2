@@ -1,4 +1,5 @@
 import type{FixtureResearchFinding,FixtureResearchMatch,UpcomingFixtureContext}from'./statPackFixtureResearch';
+import{researchCompetitionFirstWin}from'./statPackCompetitionFirstWinResearch';
 
 const words=(n:number)=>['zero','one','two','three','four','five','six','seven','eight','nine','ten'][n]??String(n);
 const ordinalWords=(n:number)=>['zeroth','first','second','third','fourth','fifth','sixth','seventh','eighth','ninth','tenth'][n]??`${n}th`;
@@ -81,14 +82,13 @@ const cleanSheetCopy=(finding:FixtureResearchFinding)=>{
 };
 
 /**
- * Publication-only editorial pass. It never changes populations, counts,
- * comparators, priorities or evidence. Where richer wording needs historical
- * context (manager venue runs and H2H), it re-derives that wording from the same
- * LUFC database rows supplied to the research engine rather than from external
- * knowledge or hard-coded football facts.
+ * Publication editorial pass plus dedicated late-stage research families that
+ * need the fully resolved upcoming fixture context. Every added fact is still
+ * derived only from the LUFC database rows supplied by the Stat Pack.
  */
 export function editorializeStatPackFindings<T extends FixtureResearchFinding>(findings:readonly T[],ctx:StatPackEditorialContext):T[]{
- return findings.map(original=>{
+ const researched:FixtureResearchFinding[]=[...findings,...researchCompetitionFirstWin(ctx.matches,ctx.fixture)];
+ return researched.map(original=>{
   let f:FixtureResearchFinding=original;
   f=managerVenueCopy(f,ctx);
   f=careerMilestoneCopy(f);
