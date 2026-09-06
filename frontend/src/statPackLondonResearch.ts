@@ -45,11 +45,15 @@ export function researchLondonAwayContext(matches:readonly FixtureResearchMatch[
 
  // Active London-away winless run. Four matches is the minimum threshold; the
  // archive is then searched for the previous run of at least the same length so
- // the current sequence is published with real historical context.
+ // the current sequence is published with real historical context. The previous
+ // London-away victory is also retained in the copy because it is often the most
+ // useful broadcast anchor for the current drought.
  let currentWinless=0;
  for(let i=londonAway.length-1;i>=0&&!won(londonAway[i]);i--)currentWinless++;
  if(currentWinless>=4){
   const current=londonAway.slice(-currentWinless),r=wdl(current);
+  const lastWin=londonAway.at(-(currentWinless+1));
+  const lastWinContext=lastWin&&won(lastWin)?` Leeds' last away win against a London club was a ${lastWin.leeds_score}-${lastWin.opponent_score} victory over ${lastWin.opponent} in ${monthYear(lastWin.match_date)}.`:'';
   let run=0,historicalMax=0,lastAtLeast:FixtureResearchMatch|null=null,lastAtLeastLength=0;
   for(const m of londonAway.slice(0,-currentWinless)){
    if(!won(m)){
@@ -59,9 +63,9 @@ export function researchLondonAwayContext(matches:readonly FixtureResearchMatch[
    }else run=0;
   }
   if(currentWinless>historicalMax){
-   add('London Away · Winless Run',`Leeds United are winless in their last ${currentWinless} away matches against London clubs across all competitions (D${r.d} L${r.l}), their longest such run in club history.`,100,`${londonAway.length} London away matches checked across all competitions; current IDs ${current.map(m=>m.match_id).join(', ')}; previous maximum=${historicalMax}`,'london-away-winless');
+   add('London Away · Winless Run',`Leeds United are winless in their last ${currentWinless} away matches against London clubs across all competitions (D${r.d} L${r.l}), their longest such run in club history.${lastWinContext}`,100,`${londonAway.length} London away matches checked across all competitions; current IDs ${current.map(m=>m.match_id).join(', ')}; previous maximum=${historicalMax}${lastWin?`; previous London-away win match ${lastWin.match_id}`:''}`,'london-away-winless');
   }else if(lastAtLeast){
-   add('London Away · Winless Run',`Leeds United are winless in their last ${currentWinless} away matches against London clubs across all competitions (D${r.d} L${r.l}), their longest such run since ${monthYear(lastAtLeast.match_date)}, when they completed a ${lastAtLeastLength}-match sequence without a win.`,99,`${londonAway.length} London away matches checked across all competitions; current IDs ${current.map(m=>m.match_id).join(', ')}; previous qualifying run completed in match ${lastAtLeast.match_id}`,'london-away-winless');
+   add('London Away · Winless Run',`Leeds United are winless in their last ${currentWinless} away matches against London clubs across all competitions (D${r.d} L${r.l}), their longest such run since ${monthYear(lastAtLeast.match_date)}, when they completed a ${lastAtLeastLength}-match sequence without a win.${lastWinContext}`,99,`${londonAway.length} London away matches checked across all competitions; current IDs ${current.map(m=>m.match_id).join(', ')}; previous qualifying run completed in match ${lastAtLeast.match_id}${lastWin?`; previous London-away win match ${lastWin.match_id}`:''}`,'london-away-winless');
   }
  }
 
