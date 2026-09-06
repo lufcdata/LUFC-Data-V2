@@ -1,5 +1,5 @@
 import type{FixtureResearchFinding,FixtureResearchMatch,UpcomingFixtureContext}from'./statPackFixtureResearch';
-import{researchCurrentCompetitionForm}from'./statPackCurrentFormResearch';
+import{researchActiveUnbeatenRuns,researchCurrentCompetitionForm}from'./statPackCurrentFormResearch';
 
 const won=(m:FixtureResearchMatch)=>m.result==='Won';
 const lost=(m:FixtureResearchMatch)=>m.result==='Lost';
@@ -13,7 +13,7 @@ const monthYear=(d:string)=>new Date(`${d}T00:00:00`).toLocaleDateString('en-GB'
  */
 export function researchHistoricalFixtureContext(matches:FixtureResearchMatch[],fixture:UpcomingFixtureContext):FixtureResearchFinding[]{
  const chron=[...matches].sort((a,b)=>a.match_date.localeCompare(b.match_date)||a.match_id-b.match_id);
- const out:FixtureResearchFinding[]=[...researchCurrentCompetitionForm(chron,fixture.competition)];
+ const out:FixtureResearchFinding[]=[...researchActiveUnbeatenRuns(chron,fixture.competition),...researchCurrentCompetitionForm(chron,fixture.competition)];
  const add=(label:string,text:string,priority:number,evidence:string,family:string)=>out.push({label,text,priority,evidence,family,grade:'A'});
  const versus=chron.filter(m=>m.opponent===fixture.opponent);
  const competitionVersus=versus.filter(m=>m.competition===fixture.competition);
