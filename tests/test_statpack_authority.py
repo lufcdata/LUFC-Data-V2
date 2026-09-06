@@ -33,6 +33,10 @@ def test_live_archive_end_scenarios_require_current_fixture_season():
 
     assert "if(LEAGUE.has(fixtureCompetition)&&fixtureSeason===current?.season)for(const s of seq)" in stat_pack
     assert stat_pack.count("if(manager&&LEAGUE.has(fixtureCompetition)&&fixtureSeason===current?.season)") == 2
+    assert stat_pack.count("if(fixtureSeason===current?.season)for(const pid of activeIds)") == 3
+    assert "if(fixtureSeason===current?.season&&currentCaptain&&activeIds.includes(currentCaptain))" in stat_pack
+    assert "if(fixtureCompetition==='Premier League'&&fixtureSeason===current?.season)for(const p of keepers.filter(p=>p.active))" in stat_pack
+    assert "if(fixtureCompetition==='Premier League'&&fixtureSeason===current?.season)for(const pid of activeIds)" in stat_pack
     assert "if(manager&&LEAGUE.has(fixtureCompetition)){" not in stat_pack
 
 
