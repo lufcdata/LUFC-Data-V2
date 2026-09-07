@@ -1,0 +1,29 @@
+name: SofaScore fixture watch
+
+on:
+  schedule:
+    # GitHub cron is UTC. Re-read SofaScore every 30 minutes so broadcaster/date
+    # changes are discovered from the live provider fixture rather than a local calendar.
+    - cron: '7,37 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  fixture-watch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout scheduler branch
+        uses: actions/checkout@v4
+        with:
+          ref: ui-bolt-opponents-v1
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Discover next fixture and finished uncaptured match
+        run: python scripts/sofascore_fixture_scheduler.py --no-collect
