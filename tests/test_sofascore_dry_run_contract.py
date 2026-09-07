@@ -120,7 +120,7 @@ def test_attendance_is_never_inferred_when_sources_are_missing():
     result=contract.attendance_candidate(None)
     assert result["status"]=="UNRESOLVED"
     assert result["attendance"] is None
-    assert result["promotion_blocking"] is True
+    assert result["blocking"] is True
 
 def test_secondary_attendance_requires_source_attribution():
     with pytest.raises(contract.ContractError,match="no source attribution"): contract.attendance_candidate(None,secondary_attendance=31661)
