@@ -11,6 +11,7 @@ from __future__ import annotations
 
 from typing import Any, Mapping
 
+from sofascore_appearance_population import validate_appearance_population
 from sofascore_dry_run_contract import reconcile_match_populations, summarize_lineups
 from sofascore_staged_events import build_staged_event_population
 
@@ -37,6 +38,49 @@ def _team_id(event: Mapping[str, Any], side: str) -> int:
     if not isinstance(team, Mapping):
         raise SourceDerivedDryRunError(f"event.{side}Team is missing")
     return _require_int(team.get("id"), f"event.{side}Team.id")
+
+
+def _lineup_ids(lineup_summary: Mapping[str, Any], side: str, bucket: str) -> list[int]:
+    side_summary = lineup_summary.get(side)
+    if not isinstance(side_summary, Mapping):
+        raise SourceDerivedDryRunError(f"lineup summary is missing side: {side}")
+    rows = side_summary.get(bucket)
+    if not isinstance(rows, list):
+        raise SourceDerivedDryRunError(f"lineup summary is missing {side}.{bucket}")
+    result: list[int] = []
+    for row in rows:
+        if not isinstance(row, Mapping):
+            raise SourceDerivedDryRunError(f"lineup summary contains invalid {side}.{bucket} row")
+        result.append(_require_int(row.get("sofascore_player_id"), f"{side}.{bucket} player ID"))
+    return result
+
+
+def _player_on_ids(incident_rows: list[Any], *, is_home: bool) -> list[int]:
+    result: list[int] = []
+    for row in incident_rows:
+        if not isinstance(row, Mapping):
+            continue
+        if row.get("incidentType") != "substitution" or row.get("isHome") is not is_home:
+            continue
+        player_in = row.get("playerIn")
+        if not isinstance(player_in, Mapping):
+            raise SourceDerivedDryRunError("substitution is missing playerIn")
+        result.append(_require_int(player_in.get("id"), "substitution playerIn.id"))
+    return result
+
+
+def _population_payload(population: Any) -> dict[str, Any]:
+    return {
+        "status": "PASS",
+        "starter_ids": sorted(population.starters),
+        "used_substitute_ids": sorted(population.used_substitutes),
+        "unused_bench_ids": sorted(population.unused_bench),
+        "appearance_ids": sorted(population.appearances),
+        "starter_count": len(population.starters),
+        "used_substitute_count": len(population.used_substitutes),
+        "unused_bench_count": len(population.unused_bench),
+        "appearance_count": len(population.appearances),
+    }
 
 
 def build_source_derived_dry_run(
@@ -75,6 +119,23 @@ def build_source_derived_dry_run(
     if not isinstance(shot_rows, list):
         raise SourceDerivedDryRunError("shotmap.shotmap is missing")
 
+    home_population = validate_appearance_population(
+        side="Home",
+        starter_ids=_lineup_ids(lineup_summary, "home", "starters"),
+        bench_ids=_lineup_ids(lineup_summary, "home", "bench"),
+        player_on_ids=_player_on_ids(incident_rows, is_home=True),
+    )
+    away_population = validate_appearance_population(
+        side="Away",
+        starter_ids=_lineup_ids(lineup_summary, "away", "starters"),
+        bench_ids=_lineup_ids(lineup_summary, "away", "bench"),
+        player_on_ids=_player_on_ids(incident_rows, is_home=False),
+    )
+    appearance_population = {
+        "home": _population_payload(home_population),
+        "away": _population_payload(away_population),
+    }
+
     staged_events = build_staged_event_population(
         incidents=[row for row in incident_rows if isinstance(row, Mapping)],
         shots=[row for row in shot_rows if isinstance(row, Mapping)],
@@ -85,6 +146,13 @@ def build_source_derived_dry_run(
 
     validations = {
         "lineups": {"status": "PASS", "squad_count_home": lineup_summary["home"]["squad_count"], "squad_count_away": lineup_summary["away"]["squad_count"]},
+        "appearance_population": {
+            "status": "PASS",
+            "home_appearance_count": appearance_population["home"]["appearance_count"],
+            "away_appearance_count": appearance_population["away"]["appearance_count"],
+            "home_unused_bench_count": appearance_population["home"]["unused_bench_count"],
+            "away_unused_bench_count": appearance_population["away"]["unused_bench_count"],
+        },
         "goals": {"status": reconciliation["goals"]["status"], "goal_count": reconciliation["goals"]["goal_count"]},
         "scores": {"status": reconciliation["goals"]["status"], "half_time_score": reconciliation["goals"]["half_time_score"], "final_score": reconciliation["goals"]["final_score"]},
         "substitutions": {"status": reconciliation["substitutions"]["status"], "substitution_count": reconciliation["substitutions"]["substitution_count"]},
@@ -102,6 +170,7 @@ def build_source_derived_dry_run(
         "leeds_team_provider_id": leeds_team_provider_id,
         "leeds_is_home": leeds_is_home,
         "lineups": lineup_summary,
+        "appearance_population": appearance_population,
         "reconciliation": reconciliation,
         "staged_events": staged_events,
         "validations": validations,
@@ -109,3 +178,4 @@ def build_source_derived_dry_run(
         "canonical_lufc_ids_assigned": False,
         "promotion_performed": False,
     }
+
