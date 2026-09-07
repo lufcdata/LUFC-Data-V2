@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """Build a fully evidence-driven zero-write ingestion package from a verified capture.
 
-This runner joins the on-disk capture verifier to the fully evidence-driven ingestion
-orchestrator. It never performs database access or canonical promotion. Source payloads
-always come from the verified capture directory. LUFC-scoped identities can now be
-derived directly from provider-namespaced mapping rows, avoiding manually assembled
-identity packages.
+The preferred path now requires only verified raw capture, LUFC-scoped mapping rows,
+canonical LUFC context and explicitly attributed secondary evidence. Reconciliation,
+identity resolution, canonical diff and promotion-gate inputs are all derived inside
+the zero-write pipeline. Prebuilt identity/diff inputs remain supported for controlled
+compatibility tests and forensic replays.
 """
 
 from __future__ import annotations
@@ -22,6 +22,7 @@ from sofascore_canonical_match_enrichment import (
 )
 from sofascore_capture_loader import load_verified_capture
 from sofascore_evidence_validations import build_evidence_validations
+from sofascore_source_canonical_diff import build_source_canonical_diff
 from sofascore_source_derived_dry_run import build_source_derived_dry_run
 from sofascore_source_driven_ingestion_package import (
     build_fully_evidence_driven_ingestion_package,
@@ -109,7 +110,7 @@ def build_package_from_capture(
     run_id: str,
     importer_git_sha: str,
     leeds_team_provider_id: int,
-    canonical_diff: Mapping[str, Any],
+    canonical_diff: Mapping[str, Any] | None = None,
     identity_package: Mapping[str, Any] | None = None,
     identity_mapping_validation: Mapping[str, Any] | None = None,
     identity_mappings: Iterable[Mapping[str, Any]] | None = None,
@@ -118,7 +119,7 @@ def build_package_from_capture(
     backup: Mapping[str, Any] | None = None,
     rollback_manifest: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
-    """Verify raw capture, derive scoped identities, enrich safe fields and package."""
+    """Verify raw capture and build one source-derived zero-write ingestion package."""
     capture = load_verified_capture(Path(capture_dir))
     raw_payloads = capture.get("raw_payloads")
     if not isinstance(raw_payloads, Mapping):
@@ -132,9 +133,17 @@ def build_package_from_capture(
         identity_mappings=identity_mappings,
     )
 
-    effective_diff: Mapping[str, Any] = canonical_diff
+    source_bundle: Mapping[str, Any] | None = None
+    evidence_bundle: Mapping[str, Any] | None = None
     match_enrichment: Mapping[str, Any] | None = None
-    if canonical_context is not None:
+
+    # A missing prebuilt diff selects the preferred source-derived path. Canonical
+    # context is mandatory because season/competition/manager-spell IDs are LUFC-owned.
+    if canonical_diff is None:
+        if canonical_context is None:
+            raise CaptureToPackageError(
+                "canonical_context is required when canonical diff is source-derived"
+            )
         source_bundle = build_source_derived_dry_run(
             raw_payloads=raw_payloads,
             leeds_team_provider_id=leeds_team_provider_id,
@@ -144,15 +153,36 @@ def build_package_from_capture(
             leeds_team_provider_id=leeds_team_provider_id,
             secondary_evidence=secondary_evidence,
         )
-        match_enrichment = build_canonical_match_enrichment(
+        effective_diff = build_source_canonical_diff(
+            raw_payloads=raw_payloads,
             source_bundle=source_bundle,
             evidence_bundle=evidence_bundle,
+            identity_package=effective_identity_package,
             canonical_context=canonical_context,
+            leeds_team_provider_id=leeds_team_provider_id,
         )
-        effective_diff = merge_match_enrichment_into_canonical_diff(
-            canonical_diff=canonical_diff,
-            enrichment=match_enrichment,
-        )
+        match_enrichment = effective_diff.get("match_enrichment") if isinstance(effective_diff, Mapping) else None
+    else:
+        effective_diff = canonical_diff
+        if canonical_context is not None:
+            source_bundle = build_source_derived_dry_run(
+                raw_payloads=raw_payloads,
+                leeds_team_provider_id=leeds_team_provider_id,
+            )
+            evidence_bundle = build_evidence_validations(
+                raw_payloads=raw_payloads,
+                leeds_team_provider_id=leeds_team_provider_id,
+                secondary_evidence=secondary_evidence,
+            )
+            match_enrichment = build_canonical_match_enrichment(
+                source_bundle=source_bundle,
+                evidence_bundle=evidence_bundle,
+                canonical_context=canonical_context,
+            )
+            effective_diff = merge_match_enrichment_into_canonical_diff(
+                canonical_diff=canonical_diff,
+                enrichment=match_enrichment,
+            )
 
     result = build_fully_evidence_driven_ingestion_package(
         run_id=run_id,
@@ -178,6 +208,7 @@ def build_package_from_capture(
             "unavailable_payloads": capture["unavailable_payloads"],
         },
         "source_identity": source_identity,
+        "source_derived_canonical_diff": canonical_diff is None,
         "canonical_match_enrichment": match_enrichment,
         "ingestion": result,
         "database_writes": 0,
@@ -205,7 +236,7 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--identity-mappings", type=Path)
     parser.add_argument("--identity-package", type=Path)
     parser.add_argument("--identity-validation", type=Path)
-    parser.add_argument("--canonical-diff", type=Path, required=True)
+    parser.add_argument("--canonical-diff", type=Path)
     parser.add_argument("--canonical-context", type=Path)
     parser.add_argument("--secondary-evidence", type=Path)
     parser.add_argument("--backup", type=Path)
@@ -237,6 +268,15 @@ def main(argv: list[str] | None = None) -> int:
                 args.identity_validation, "identity mapping validation"
             )
 
+        canonical_context = _optional_json_object(
+            args.canonical_context, "canonical match context"
+        )
+        canonical_diff = _optional_json_object(args.canonical_diff, "canonical diff")
+        if canonical_diff is None and canonical_context is None:
+            raise CaptureToPackageError(
+                "--canonical-context is required when --canonical-diff is omitted"
+            )
+
         result = build_package_from_capture(
             capture_dir=args.capture_dir,
             run_id=args.run_id,
@@ -245,10 +285,8 @@ def main(argv: list[str] | None = None) -> int:
             identity_package=identity_package,
             identity_mapping_validation=identity_validation,
             identity_mappings=mappings,
-            canonical_diff=_read_json_object(args.canonical_diff, "canonical diff"),
-            canonical_context=_optional_json_object(
-                args.canonical_context, "canonical match context"
-            ),
+            canonical_diff=canonical_diff,
+            canonical_context=canonical_context,
             secondary_evidence=_optional_json_object(
                 args.secondary_evidence, "secondary evidence"
             ),
