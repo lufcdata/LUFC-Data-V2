@@ -6,6 +6,7 @@ from pathlib import Path
 
 SCRIPTS_DIR = Path(__file__).resolve().parents[1] / "scripts"
 TESTS_DIR = Path(__file__).resolve().parent
+IMPORTER_GIT_SHA = "b61f7b8d6ee2d33e5237e7d2bb1641f510c52b34"
 
 
 def _load_path(name: str, path: Path):
@@ -124,6 +125,7 @@ def _build():
         identity_package=_identity(),
         canonical_context=_canonical_context(),
         leeds_team_provider_id=34,
+        importer_git_sha=IMPORTER_GIT_SHA,
     )
 
 
@@ -211,6 +213,37 @@ def test_blocked_opposition_captain_row_is_carried_without_namespace_contaminati
     assert result["opposition_captain_adapter"]["captain_name_raw"] == "Lewis Dunk"
     assert result["opposition_captain_adapter"]["provider_player_id"] == 115365
     assert result["opposition_captain_adapter"]["operation_count"] == 1
+
+
+def test_blocked_ingestion_provenance_rows_are_carried_with_deferred_parent_identity():
+    result = _build()
+    runs = [op for op in result["operations"] if op["table"] == "ingestion.runs"]
+    fields = [op for op in result["operations"] if op["table"] == "ingestion.field_provenance"]
+    assert len(runs) == 1
+    assert len(fields) == 1
+
+    run = runs[0]
+    assert run["key"] == {
+        "provider": "sofascore",
+        "provider_event_id": "16363258",
+        "importer_git_sha": IMPORTER_GIT_SHA,
+    }
+    assert run["values"]["canonical_match_id"] == 4857
+    assert run["deferred_primary_key"]["column"] == "ingestion_run_id"
+    assert run["canonical_primary_key_allocated"] is False
+
+    field = fields[0]
+    assert field["action"] == "INSERT_AFTER_PARENT_KEY_ALLOCATION_AND_SCHEMA_DEPLOYMENT"
+    assert field["values"]["ingestion_run_id"] == "<FROM_PARENT_INSERT>"
+    assert field["values"]["field_name"] == "attendance"
+    assert field["values"]["value_json"] == 31661
+    assert field["values"]["source_provider"] == "BBC Sport"
+    assert field["values"]["authority"] == "SECONDARY"
+
+    assert result["ingestion_provenance_adapter"]["importer_git_sha"] == IMPORTER_GIT_SHA
+    gap_fields = {gap["field"] for gap in result["schema_gaps"]}
+    assert "attendance provenance" in gap_fields
+    assert "SofaScore external event identity" in gap_fields
 
 
 def test_composed_diff_never_executes_database_writes():
