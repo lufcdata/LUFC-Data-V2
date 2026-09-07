@@ -29,6 +29,7 @@ _load_script("sofascore_shirt_number_diff")
 _load_script("sofascore_opposition_manager_diff")
 _load_script("sofascore_opposition_goal_diff")
 _load_script("sofascore_opposition_captain_diff")
+_load_script("sofascore_ingestion_provenance_diff")
 audited = _load_script("sofascore_audited_canonical_diff")
 fixtures = _load_path(
     "source_diff_fixture_helpers",
@@ -44,104 +45,156 @@ def _canonical_context():
         "manager_spell_id": 57,
         "opposition_manager_canonical_name": "Fabian Hürzeler",
         "opposition_manager_nationality_display": "🇩🇪",
+        "candidate_match_id": 4857,
+        "opponent_club_id": 75,
+        "league_position_after_match": 9,
     }
 
 
-def _source_bundle_with_goals():
-    source = fixtures._source_bundle()
-    # The audited Brighton integration fixture must contain the actual opposition
-    # captain population rather than relying on captain evidence alone.
-    source["lineups"]["home"]["starters"] = [
+def _source():
+    source = fixtures._source()
+    source["lineups"]["home"]["players"] = [
         {
             "sofascore_player_id": 115365,
             "name": "Lewis Dunk",
             "shirt_number": 5,
-            "jersey_number": 5,
             "substitute": False,
-            "captain": True,
-        }
-    ]
-    staged = source["staged_events"]
-    staged["database_writes"] = 0
-    staged["promotion_performed"] = False
-    staged["events"] = [
-        {
-            "provider": "sofascore",
-            "provider_event_id": 1,
-            "event_kind": "goal",
-            "team_side": "LEEDS",
-            "provider_team_id": 34,
-            "provider_player_id": 929132,
-            "provider_secondary_player_id": 871886,
-            "minute_base": 15,
-            "stoppage_minute": 0,
-            "period": None,
-            "event_json": {
-                "incidentType": "goal",
-                "time": 15,
-                "isHome": False,
-                "player": {"id": 929132, "name": "Jayden Bogle"},
-                "assist1": {"id": 871886, "name": "Ao Tanaka"},
-            },
         },
-        *staged["events"],
         {
-            "provider": "sofascore",
-            "provider_event_id": 2,
-            "event_kind": "goal",
-            "team_side": "OPPONENT",
-            "provider_team_id": 30,
-            "provider_player_id": 1405212,
-            "provider_secondary_player_id": 997152,
-            "minute_base": 71,
-            "stoppage_minute": 0,
-            "period": None,
-            "event_json": {
-                "incidentType": "goal",
-                "time": 71,
-                "isHome": True,
-                "player": {"id": 1405212, "name": "Luka Vušković"},
-                "assist1": {"id": 997152, "name": "Maxim De Cuyper"},
-            },
+            "sofascore_player_id": 1405212,
+            "name": "Luka Vušković",
+            "shirt_number": 44,
+            "substitute": False,
         },
     ]
+    source["staged_events"] = {
+        "database_writes": 0,
+        "promotion_performed": False,
+        "events": [
+            {
+                "event_kind": "goal",
+                "side": "leeds",
+                "minute_raw": "15'",
+                "minute_base": 15,
+                "stoppage_minute": None,
+                "period": "1ST",
+                "event_json": {
+                    "player": {"id": 929132, "name": "Jayden Bogle"},
+                    "assist1": {"id": 1118207, "name": "Ao Tanaka"},
+                    "isHome": False,
+                    "incidentType": "goal",
+                },
+            },
+            {
+                "event_kind": "goal",
+                "side": "opponent",
+                "minute_raw": "71'",
+                "minute_base": 71,
+                "stoppage_minute": None,
+                "period": "2ND",
+                "event_json": {
+                    "player": {"id": 1405212, "name": "Luka Vušković"},
+                    "assist1": {"id": 1056597, "name": "Maxim De Cuyper"},
+                    "isHome": True,
+                    "incidentType": "goal",
+                },
+            },
+        ],
+    }
     return source
+
+
+def _evidence():
+    evidence = fixtures._evidence()
+    evidence["validations"]["captains"] = {
+        "status": "PASS",
+        "home_captain_provider_id": 115365,
+        "away_captain_provider_id": 847097,
+    }
+    evidence["validations"]["managers"] = {
+        "status": "PASS",
+        "home_manager_provider_id": 788529,
+        "away_manager_provider_id": 265307,
+    }
+    evidence["validations"]["attendance"] = {
+        "status": "SECONDARY_SOURCE_FACT",
+        "attendance": 31661,
+        "source": "BBC Sport",
+    }
+    return evidence
+
+
+def _identity():
+    identity = fixtures._identity()
+    identity["mappings"].append(
+        {
+            "scope": "opposition_manager",
+            "provider": "sofascore",
+            "provider_id": 788529,
+            "canonical_namespace": "managerial_people.managerial_person_id",
+            "canonical_id": 822,
+            "status": "RESOLVED",
+        }
+    )
+    return identity
 
 
 def _build():
     return audited.build_audited_canonical_diff(
         raw_payloads=fixtures._raw_payloads(),
-        source_bundle=_source_bundle_with_goals(),
-        evidence_bundle=fixtures._evidence_bundle(),
-        identity_package=fixtures._identity_package(),
+        source_bundle=_source(),
+        evidence_bundle=_evidence(),
+        identity_package=_identity(),
         canonical_context=_canonical_context(),
         leeds_team_provider_id=34,
     )
 
 
-def test_brighton_composition_adds_twenty_shirts_and_gold_manager_route():
+def test_audited_diff_adds_twenty_shirt_rows_and_gold_manager_relationship():
     result = _build()
-
-    shirts = [row for row in result["operations"] if row["table"] == "player_match_shirt_numbers"]
-    assignments = [row for row in result["operations"] if row["table"] == "managerial_assignments"]
-    people = [row for row in result["operations"] if row["table"] == "managerial_assignment_people"]
-
-    assert len(shirts) == 20
-    assert len(assignments) == 1
-    assert len(people) == 1
-    assert assignments[0]["key"] == {"match_id": 4857}
-    assert assignments[0]["values"]["canonical_source_name"] == "Fabian Hürzeler"
-    assert people[0]["key"]["managerial_person_id"] == 822
+    assert result["audited_composition"] is True
+    assert result["status"] == "BLOCKED"
     assert result["shirt_number_adapter"] == {"status": "PASS", "operation_count": 20}
-    assert result["opposition_manager_adapter"]["status"] == "PASS"
-    assert result["opposition_manager_adapter"]["managerial_person_id"] == 822
-    assert result["opposition_manager_adapter"]["requires_transactional_parent_key_allocation"] is True
+    assert result["opposition_manager_adapter"] == {
+        "status": "PASS",
+        "managerial_person_id": 822,
+        "operation_count": 2,
+        "requires_transactional_parent_key_allocation": True,
+    }
+
+    shirts = [op for op in result["operations"] if op["table"] == "player_match_shirt_numbers"]
+    assert len(shirts) == 20
+    assert all(op["key"]["match_id"] == 4857 for op in shirts)
+    assert all("player_match_shirt_number_id" not in op["values"] for op in shirts)
+    assert all(op["values"]["source_row_id"] is None for op in shirts)
+
+    assignment = next(op for op in result["operations"] if op["table"] == "managerial_assignments")
+    assert assignment["key"] == {"match_id": 4857}
+    assert assignment["values"]["authority_type"] == "individual"
+    assert assignment["values"]["canonical_source_name"] == "Fabian Hürzeler"
+    assert assignment["values"]["managerial_assignment_id"] is None
+
+    link = next(op for op in result["operations"] if op["table"] == "managerial_assignment_people")
+    assert link["action"] == "INSERT_AFTER_PARENT_KEY_ALLOCATION"
+    assert link["key"]["managerial_assignment_id"] is None
+    assert link["key"]["managerial_person_id"] == 822
 
 
-def test_brighton_diff_carries_exact_vuskovic_row_without_closing_schema_gap():
+def test_only_audited_manager_schema_gap_is_removed():
     result = _build()
-    rows = [row for row in result["operations"] if row["table"] == "opposition_goals"]
+    fields = {gap["field"] for gap in result["schema_gaps"]}
+    assert "opposition manager" not in fields
+    assert "structured opposition goals" in fields
+    assert "opposition captain" in fields
+    assert "attendance provenance" in fields
+    assert "SofaScore external event identity" in fields
+    assert "exact tactical formation slots" in fields
+    assert result["schema_gap_count"] == len(result["schema_gaps"])
 
+
+def test_blocked_opposition_goal_row_is_carried_without_closing_schema_gap():
+    result = _build()
+    rows = [op for op in result["operations"] if op["table"] == "opposition_goals"]
     assert len(rows) == 1
     row = rows[0]
     assert row["action"] == "INSERT_AFTER_SCHEMA_DEPLOYMENT"
@@ -149,7 +202,7 @@ def test_brighton_diff_carries_exact_vuskovic_row_without_closing_schema_gap():
     assert row["values"]["sequence_in_match"] == 2
     assert row["values"]["scorer_name_raw"] == "Luka Vušković"
     assert row["values"]["assist_name_raw"] == "Maxim De Cuyper"
-    assert row["values"]["minute_raw"] == "71"
+    assert row["values"]["minute_base"] == 71
     assert row["values"]["score_leeds_after"] == 1
     assert row["values"]["score_opponent_after"] == 1
     assert row["values"]["game_state_before"] == "Leading +1"
@@ -157,17 +210,17 @@ def test_brighton_diff_carries_exact_vuskovic_row_without_closing_schema_gap():
     assert result["opposition_goal_adapter"]["status"] == "SCHEMA_GAP"
     assert result["opposition_goal_adapter"]["destination_deployed"] is False
     assert result["opposition_goal_adapter"]["opposition_goal_count"] == 1
+    assert result["opposition_goal_adapter"]["operation_count"] == 1
 
 
-def test_brighton_diff_carries_lewis_dunk_without_namespace_contamination():
+def test_blocked_opposition_captain_row_is_carried_without_namespace_contamination():
     result = _build()
-    rows = [row for row in result["operations"] if row["table"] == "opposition_captains"]
-
+    rows = [op for op in result["operations"] if op["table"] == "opposition_captains"]
     assert len(rows) == 1
     row = rows[0]
     assert row["action"] == "INSERT_AFTER_SCHEMA_DEPLOYMENT"
     assert row["key"] == {"match_id": 4857}
-    assert row["values"] == {"match_id": 4857, "captain_name_raw": "Lewis Dunk"}
+    assert row["values"]["captain_name_raw"] == "Lewis Dunk"
     assert row["provider_evidence"]["provider_player_id"] == 115365
     assert row["canonical_opposition_player_id"] is None
     assert row["provider_id_written_to_canonical_id"] is False
@@ -175,24 +228,11 @@ def test_brighton_diff_carries_lewis_dunk_without_namespace_contamination():
     assert result["opposition_captain_adapter"]["destination_deployed"] is False
     assert result["opposition_captain_adapter"]["captain_name_raw"] == "Lewis Dunk"
     assert result["opposition_captain_adapter"]["provider_player_id"] == 115365
+    assert result["opposition_captain_adapter"]["operation_count"] == 1
 
 
-def test_opposition_manager_gap_is_closed_but_other_real_gaps_remain_blocking():
+def test_composed_diff_never_executes_database_writes():
     result = _build()
-    fields = {gap["field"] for gap in result["schema_gaps"]}
-
-    assert "opposition manager" not in fields
-    assert "structured opposition goals" in fields
-    assert "opposition captain" in fields
-    assert "attendance provenance" in fields
-    assert "SofaScore external event identity" in fields
-    assert "exact tactical formation slots" in fields
-    assert result["status"] == "BLOCKED"
-
-
-def test_composed_diff_remains_strictly_zero_write():
-    result = _build()
-    assert result["audited_composition"] is True
     assert result["database_writes"] == 0
     assert result["sql_generated"] is False
     assert result["promotion_performed"] is False
