@@ -6,6 +6,10 @@ surfaces that already have an explicit destination in the LUFC schema contract.
 Required source facts that do not yet have a safe canonical destination are emitted
 as SCHEMA_GAP blockers instead of being discarded, overloaded into unrelated fields,
 or written to an improvised location.
+
+Identity resolution is LUFC-scoped: Leeds players resolve to `players`, the opponent
+club resolves to `clubs`, Leeds managers resolve to `managers`, and opposition managers
+resolve to `managerial_people`. Opposition players are never forced into `players`.
 """
 
 from __future__ import annotations
@@ -30,34 +34,56 @@ def _require_text(value: Any, label: str) -> str:
     return text
 
 
-def _resolved_id(package: Mapping[str, Any], entity_type: str, provider_id: int) -> int:
-    """Read one canonical ID from an already-validated identity package."""
-    if entity_type == "match":
-        match = package.get("match")
-        if not isinstance(match, Mapping):
-            raise CanonicalDiffError("identity package has no match resolution")
-        if match.get("provider_id") != provider_id:
-            raise CanonicalDiffError("identity package match provider ID does not match fixture")
-        return _require_int(match.get("canonical_id"), "canonical match ID")
+def _require_scoped_resolution(
+    package: Mapping[str, Any],
+    *,
+    key: str,
+    entity_scope: str,
+    provider_id: int,
+) -> int:
+    resolution = package.get(key)
+    if not isinstance(resolution, Mapping):
+        raise CanonicalDiffError(f"identity package has no {key} resolution")
+    if resolution.get("entity_scope") != entity_scope:
+        raise CanonicalDiffError(
+            f"identity package {key} scope is {resolution.get('entity_scope')!r}; expected {entity_scope!r}"
+        )
+    if resolution.get("provider_id") != provider_id:
+        raise CanonicalDiffError(
+            f"identity package {key} provider ID does not match provider_id={provider_id}"
+        )
+    return _require_int(resolution.get("canonical_id"), f"canonical {entity_scope} ID")
 
-    plural = {"team": "teams", "player": "players", "manager": "managers"}.get(entity_type)
-    if plural is None:
-        raise CanonicalDiffError(f"unsupported identity entity type: {entity_type}")
-    group = package.get(plural)
+
+def _resolved_leeds_player(package: Mapping[str, Any], provider_id: int) -> int:
+    group = package.get("leeds_players")
     if not isinstance(group, Mapping):
-        raise CanonicalDiffError(f"identity package has no {plural} resolution group")
+        raise CanonicalDiffError("identity package has no leeds_players resolution group")
     resolutions = group.get("resolutions")
     if not isinstance(resolutions, list):
-        raise CanonicalDiffError(f"identity package {plural}.resolutions is missing")
+        raise CanonicalDiffError("identity package leeds_players.resolutions is missing")
     matches = [
-        row for row in resolutions
-        if isinstance(row, Mapping) and row.get("provider_id") == provider_id
+        row
+        for row in resolutions
+        if isinstance(row, Mapping)
+        and row.get("entity_scope") == "leeds_player"
+        and row.get("provider_id") == provider_id
     ]
     if len(matches) != 1:
         raise CanonicalDiffError(
-            f"expected exactly one {entity_type} identity for provider_id={provider_id}; found {len(matches)}"
+            f"expected exactly one Leeds player identity for provider_id={provider_id}; found {len(matches)}"
         )
-    return _require_int(matches[0].get("canonical_id"), f"canonical {entity_type} ID")
+    return _require_int(matches[0].get("canonical_id"), "canonical Leeds player ID")
+
+
+def _validate_leeds_team_identity(package: Mapping[str, Any], provider_id: int) -> None:
+    identity = package.get("leeds_team")
+    if not isinstance(identity, Mapping):
+        raise CanonicalDiffError("identity package has no leeds_team validation")
+    if identity.get("provider_id") != provider_id:
+        raise CanonicalDiffError("identity package Leeds team provider ID does not match fixture")
+    if identity.get("canonical_mapping") != "NOT_APPLICABLE":
+        raise CanonicalDiffError("Leeds team must not be mapped into opponent clubs")
 
 
 def _operation(table: str, action: str, key: Mapping[str, Any], values: Mapping[str, Any]) -> dict[str, Any]:
@@ -100,20 +126,40 @@ def build_proposed_canonical_diff(
     proposal for review by the promotion gate, not permission to write.
     """
     event_id = _require_int(fixture.get("event_id"), "SofaScore event ID")
-    canonical_match_id = _resolved_id(identity_package, "match", event_id)
+    canonical_match_id = _require_scoped_resolution(
+        identity_package,
+        key="match",
+        entity_scope="match",
+        provider_id=event_id,
+    )
 
     home_team_provider_id = _require_int(fixture.get("home_team_provider_id"), "home team provider ID")
     away_team_provider_id = _require_int(fixture.get("away_team_provider_id"), "away team provider ID")
     if leeds_team_provider_id not in {home_team_provider_id, away_team_provider_id}:
         raise CanonicalDiffError("Leeds provider team ID is not one of the fixture teams")
+    _validate_leeds_team_identity(identity_package, leeds_team_provider_id)
 
     leeds_home = leeds_team_provider_id == home_team_provider_id
     opponent_provider_id = away_team_provider_id if leeds_home else home_team_provider_id
-    opponent_id = _resolved_id(identity_package, "team", opponent_provider_id)
-    leeds_manager_id = _resolved_id(identity_package, "manager", leeds_manager_provider_id)
-    leeds_captain_id = _resolved_id(identity_package, "player", leeds_captain_provider_id)
-    opposition_manager_id = _resolved_id(identity_package, "manager", opposition_manager_provider_id)
-    opposition_captain_id = _resolved_id(identity_package, "player", opposition_captain_provider_id)
+    opponent_id = _require_scoped_resolution(
+        identity_package,
+        key="opponent_club",
+        entity_scope="opponent_club",
+        provider_id=opponent_provider_id,
+    )
+    leeds_manager_id = _require_scoped_resolution(
+        identity_package,
+        key="leeds_manager",
+        entity_scope="leeds_manager",
+        provider_id=leeds_manager_provider_id,
+    )
+    opposition_manager_id = _require_scoped_resolution(
+        identity_package,
+        key="opposition_manager",
+        entity_scope="opposition_manager",
+        provider_id=opposition_manager_provider_id,
+    )
+    leeds_captain_id = _resolved_leeds_player(identity_package, leeds_captain_provider_id)
 
     home_score = _require_int(fixture.get("home_score"), "home score")
     away_score = _require_int(fixture.get("away_score"), "away score")
@@ -154,7 +200,7 @@ def build_proposed_canonical_diff(
 
     for index, row in enumerate(lineup_rows, start=1):
         provider_player_id = _require_int(row.get("provider_player_id"), "lineup provider player ID")
-        player_id = _resolved_id(identity_package, "player", provider_player_id)
+        player_id = _resolved_leeds_player(identity_package, provider_player_id)
         started = row.get("started") is True
         substitute = row.get("substitute") is True
         if started == substitute:
@@ -177,10 +223,10 @@ def build_proposed_canonical_diff(
 
     for row in leeds_goals:
         provider_player_id = _require_int(row.get("provider_player_id"), "goal scorer provider player ID")
-        scorer_id = _resolved_id(identity_package, "player", provider_player_id)
+        scorer_id = _resolved_leeds_player(identity_package, provider_player_id)
         assist_provider_id = row.get("assist_provider_player_id")
         assist_id = (
-            _resolved_id(identity_package, "player", assist_provider_id)
+            _resolved_leeds_player(identity_package, assist_provider_id)
             if isinstance(assist_provider_id, int)
             else None
         )
@@ -232,13 +278,13 @@ def build_proposed_canonical_diff(
             _schema_gap(
                 "match",
                 "opposition manager",
-                f"resolved canonical opposition manager/person identity {opposition_manager_id} must be routed through the authoritative managerial assignment model",
+                f"resolved managerial_people identity {opposition_manager_id} must be routed through the authoritative managerial assignment model",
                 "SofaScore managers",
             ),
             _schema_gap(
                 "match",
                 "opposition captain",
-                f"resolved canonical opposition captain player identity {opposition_captain_id} has no verified canonical match destination yet",
+                f"SofaScore opposition captain provider identity {opposition_captain_provider_id} has no approved canonical destination; it must not be inserted into Leeds players",
                 "SofaScore lineups",
             ),
             _schema_gap(
@@ -266,10 +312,14 @@ def build_proposed_canonical_diff(
         "status": "BLOCKED" if schema_gaps else "PASS",
         "sofascore_event_id": event_id,
         "canonical_match_id": canonical_match_id,
+        "validated_leeds_manager_id": leeds_manager_id,
+        "validated_opposition_managerial_person_id": opposition_manager_id,
         "operation_count": len(operations),
         "operations": operations,
         "schema_gap_count": len(schema_gaps),
         "schema_gaps": schema_gaps,
+        "identity_scope": "LUFC_SCOPED",
+        "opposition_players_mapped_to_leeds_players": False,
         "database_writes": 0,
         "sql_generated": False,
         "promotion_performed": False,
