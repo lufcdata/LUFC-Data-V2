@@ -2,9 +2,12 @@ name: SofaScore fixture watch
 
 on:
   schedule:
-    # GitHub cron is UTC. Re-read SofaScore every 30 minutes so broadcaster/date
-    # changes are discovered from the live provider fixture rather than a local calendar.
-    - cron: '7,37 * * * *'
+    # GitHub cron is UTC. Check once each day at 18:00 UK time equivalent.
+    # Two seasonal UTC schedules are intentionally avoided here; 18:00 UTC means
+    # 18:00 GMT in winter and 19:00 BST in summer, which is acceptable for a
+    # once-daily fixture-change check. Match-day triggering will use the stored
+    # live fixture time rather than frequent all-season polling.
+    - cron: '0 18 * * *'
   workflow_dispatch:
 
 permissions:
