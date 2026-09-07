@@ -53,6 +53,32 @@ def _lineup_entries(lineups: dict[str, Any], side: str) -> list[dict[str, Any]]:
     return [entry for entry in players if isinstance(entry, dict)]
 
 
+def _lineup_entry_summary(entry: dict[str, Any], side: str) -> dict[str, Any]:
+    player = entry.get("player")
+    if not isinstance(player, dict):
+        raise ContractError(f"lineups.{side} contains an entry with no player object")
+
+    provider_player_id = player.get("id")
+    if not isinstance(provider_player_id, int):
+        raise ContractError(
+            f"lineups.{side} player {player.get('name') or '<unknown>'} has no numeric SofaScore player ID"
+        )
+
+    return {
+        "provider": "sofascore",
+        "sofascore_player_id": provider_player_id,
+        "name": str(player.get("name") or ""),
+        "shirt_number": entry.get("shirtNumber"),
+        "jersey_number": entry.get("jerseyNumber"),
+        # Match-context position belongs to the lineup entry. Keep it separate from
+        # the nested player profile position; never silently substitute one for the other.
+        "match_position": entry.get("position"),
+        "profile_position": player.get("position"),
+        "substitute": entry.get("substitute") is True,
+        "captain": entry.get("captain") is True,
+    }
+
+
 def extract_captain(lineups: dict[str, Any], side: str) -> dict[str, Any]:
     """Return one source-backed starting captain for a lineup side.
 
@@ -70,20 +96,66 @@ def extract_captain(lineups: dict[str, Any], side: str) -> dict[str, Any]:
     if captain.get("substitute") is True:
         raise ContractError(f"lineups.{side} captain is marked as a substitute")
 
-    player = captain.get("player")
-    if not isinstance(player, dict):
-        raise ContractError(f"lineups.{side} captain has no player object")
+    summary = _lineup_entry_summary(captain, side)
+    summary["substitute"] = False
+    summary["captain"] = True
+    return summary
 
-    provider_player_id = player.get("id")
-    if not isinstance(provider_player_id, int):
-        raise ContractError(f"lineups.{side} captain has no numeric SofaScore player ID")
+
+def summarize_lineup_side(lineups: dict[str, Any], side: str) -> dict[str, Any]:
+    """Validate and summarize one confirmed SofaScore matchday lineup.
+
+    This deliberately preserves provider IDs and source fields only. It does not
+    assign LUFC player IDs or infer exact positions from profile metadata.
+    """
+    if lineups.get("confirmed") is not True:
+        raise ContractError("lineups are not confirmed")
+
+    team = lineups.get(side)
+    if not isinstance(team, dict):
+        raise ContractError(f"lineups.{side} is missing")
+
+    formation = team.get("formation")
+    if not isinstance(formation, str) or not formation.strip():
+        raise ContractError(f"lineups.{side}.formation is missing")
+
+    players = [_lineup_entry_summary(entry, side) for entry in _lineup_entries(lineups, side)]
+    if not players:
+        raise ContractError(f"lineups.{side} contains no players")
+
+    provider_ids = [player["sofascore_player_id"] for player in players]
+    if len(provider_ids) != len(set(provider_ids)):
+        raise ContractError(f"lineups.{side} contains duplicate SofaScore player IDs")
+
+    starters = [player for player in players if not player["substitute"]]
+    bench = [player for player in players if player["substitute"]]
+    if len(starters) != 11:
+        raise ContractError(
+            f"lineups.{side} must contain exactly 11 starters; found {len(starters)}"
+        )
+
+    captain = extract_captain(lineups, side)
 
     return {
         "provider": "sofascore",
-        "sofascore_player_id": provider_player_id,
-        "name": str(player.get("name") or ""),
-        "shirt_number": captain.get("shirtNumber"),
-        "match_position": captain.get("position"),
-        "substitute": False,
-        "captain": True,
+        "side": side,
+        "formation": formation,
+        "starter_count": len(starters),
+        "bench_count": len(bench),
+        "squad_count": len(players),
+        "captain": captain,
+        "starters": starters,
+        "bench": bench,
+    }
+
+
+def summarize_lineups(lineups: dict[str, Any]) -> dict[str, Any]:
+    """Return the validated home/away lineup package for a read-only dry run."""
+    return {
+        "provider": "sofascore",
+        "confirmed": True,
+        "home": summarize_lineup_side(lineups, "home"),
+        "away": summarize_lineup_side(lineups, "away"),
+        "database_writes": 0,
+        "canonical_lufc_ids_assigned": False,
     }
