@@ -9,9 +9,25 @@ population. It has no network or database access and assigns no canonical LUFC I
 
 from __future__ import annotations
 
+import importlib.util
+import sys
+from pathlib import Path
 from typing import Any, Mapping
 
-from sofascore_appearance_population import validate_appearance_population
+try:
+    from sofascore_appearance_population import validate_appearance_population
+except ModuleNotFoundError:
+    _appearance_path = Path(__file__).with_name("sofascore_appearance_population.py")
+    _appearance_spec = importlib.util.spec_from_file_location(
+        "sofascore_appearance_population", _appearance_path
+    )
+    if _appearance_spec is None or _appearance_spec.loader is None:
+        raise
+    _appearance_module = importlib.util.module_from_spec(_appearance_spec)
+    sys.modules["sofascore_appearance_population"] = _appearance_module
+    _appearance_spec.loader.exec_module(_appearance_module)
+    validate_appearance_population = _appearance_module.validate_appearance_population
+
 from sofascore_dry_run_contract import reconcile_match_populations, summarize_lineups
 from sofascore_staged_events import build_staged_event_population
 
@@ -178,4 +194,3 @@ def build_source_derived_dry_run(
         "canonical_lufc_ids_assigned": False,
         "promotion_performed": False,
     }
-
