@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -58,3 +59,28 @@ def test_provider_kickoff_change_moves_full_time_window_automatically():
 
 def test_event_without_provider_timestamp_has_no_scheduler_datetime():
     assert scheduler._event_datetime({}) is None
+
+
+def test_capture_manifest_recovers_event_id_when_scheduler_state_is_missing(tmp_path):
+    capture = tmp_path / "16363258"
+    capture.mkdir()
+    (capture / "manifest.json").write_text(
+        json.dumps({"provider": "sofascore", "sofascore_event_id": 16363258}),
+        encoding="utf-8",
+    )
+
+    assert scheduler._captured_event_ids(tmp_path) == {16363258}
+
+
+def test_capture_manifest_scan_ignores_wrong_provider_and_invalid_manifests(tmp_path):
+    wrong = tmp_path / "wrong"
+    wrong.mkdir()
+    (wrong / "manifest.json").write_text(
+        json.dumps({"provider": "other", "sofascore_event_id": 16363258}),
+        encoding="utf-8",
+    )
+    broken = tmp_path / "broken"
+    broken.mkdir()
+    (broken / "manifest.json").write_text("not-json", encoding="utf-8")
+
+    assert scheduler._captured_event_ids(tmp_path) == set()
