@@ -44,15 +44,32 @@ jobs:
         if: steps.uk-time.outputs.run == 'true'
         run: python scripts/sofascore_fixture_scheduler.py --no-collect
 
-      # Safety preparation for the future collection phase. Once collection is
-      # enabled, every raw capture must survive the ephemeral Actions runner.
-      # upload-artifact is harmless while --no-collect remains active: if no
-      # capture exists, this step simply finds no files and does not fail.
-      - name: Preserve immutable SofaScore raw capture
+      # Safety preparation for the future collection phase. Each provider event
+      # becomes its own durable artifact, named by the SofaScore event ID. That
+      # provider ID is an external identity only; it never occupies a LUFC
+      # canonical match_id field.
+      - name: Discover raw capture directories
         if: steps.uk-time.outputs.run == 'true'
+        id: captures
+        shell: bash
+        run: |
+          shopt -s nullglob
+          dirs=(source_data/sofascore/*/)
+          if [ ${#dirs[@]} -eq 0 ]; then
+            echo 'matrix=[]' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          printf '%s\n' "${dirs[@]}" | python -c 'import json,sys; print("matrix=" + json.dumps([line.strip().rstrip("/").split("/")[-1] for line in sys.stdin if line.strip()]))' >> "$GITHUB_OUTPUT"
+
+      - name: Preserve immutable SofaScore raw captures
+        if: steps.uk-time.outputs.run == 'true' && steps.captures.outputs.matrix != '[]'
         uses: actions/upload-artifact@v4
         with:
           name: sofascore-raw-${{ github.run_id }}
           path: source_data/sofascore/**
-          if-no-files-found: ignore
+          if-no-files-found: error
           retention-days: 14
+
+      - name: Report durable capture identities
+        if: steps.uk-time.outputs.run == 'true'
+        run: echo 'Raw capture event IDs present: ${{ steps.captures.outputs.matrix }}'
