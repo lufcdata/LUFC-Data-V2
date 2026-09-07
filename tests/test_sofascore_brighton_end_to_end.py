@@ -66,11 +66,11 @@ def test_brighton_verified_populations_flow_through_one_zero_write_package():
     ]
     shots.extend(
         {"id": 9000000 + i, "time": 20 + i, "timeSeconds": (20 + i) * 60, "isHome": True, "player": _player(2000000 + i), "shotType": "miss"}
-        for i in range(18)
+        for i in range(19)
     )
     shots.extend(
         {"id": 9100000 + i, "time": 30 + i, "timeSeconds": (30 + i) * 60, "isHome": False, "player": _player(3000000 + i), "shotType": "miss"}
-        for i in range(10)
+        for i in range(9)
     )
 
     staged_population = staged.build_staged_event_population(
