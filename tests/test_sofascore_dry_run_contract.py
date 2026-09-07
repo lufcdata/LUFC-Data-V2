@@ -116,6 +116,81 @@ def test_fa_cup_does_not_trigger_league_position_lookup():
     assert result["status"] == "NOT_APPLICABLE"
 
 
+def test_unknown_competition_blocks_instead_of_silently_becoming_non_league():
+    with pytest.raises(contract.ContractError, match="not classified"):
+        contract.league_position_requirement(_event("Future New Competition"))
+
+
+def test_missing_competition_blocks():
+    with pytest.raises(contract.ContractError, match="not classified"):
+        contract.league_position_requirement({})
+
+
+def test_bbc_attendance_can_fill_missing_sofascore_attendance_with_provenance():
+    result = contract.attendance_candidate(
+        None,
+        secondary_attendance=31661,
+        secondary_source="BBC",
+    )
+
+    assert result == {
+        "status": "SECONDARY_SOURCE_FACT",
+        "attendance": 31661,
+        "source": "BBC",
+    }
+
+
+def test_attendance_is_never_inferred_when_sources_are_missing():
+    result = contract.attendance_candidate(None)
+
+    assert result["status"] == "UNAVAILABLE"
+    assert result["attendance"] is None
+
+
+def test_secondary_attendance_requires_source_attribution():
+    with pytest.raises(contract.ContractError, match="no source attribution"):
+        contract.attendance_candidate(None, secondary_attendance=31661)
+
+
+def test_brighton_formation_crosscheck_agrees_between_sofascore_and_bbc():
+    result = contract.validate_formation_crosscheck(
+        "4-2-3-1",
+        secondary_formation="4-2-3-1",
+        secondary_source="BBC",
+    )
+
+    assert result["status"] == "VALIDATED"
+    assert result["formation"] == "4-2-3-1"
+    assert result["crosscheck_source"] == "BBC"
+
+
+def test_leeds_formation_crosscheck_agrees_between_sofascore_and_bbc():
+    result = contract.validate_formation_crosscheck(
+        "3-5-2",
+        secondary_formation="3-5-2",
+        secondary_source="BBC",
+    )
+
+    assert result["status"] == "VALIDATED"
+    assert result["formation"] == "3-5-2"
+
+
+def test_formation_conflict_blocks_instead_of_overwriting_primary_source():
+    with pytest.raises(contract.ContractError, match="formation conflict"):
+        contract.validate_formation_crosscheck(
+            "3-5-2",
+            secondary_formation="4-3-3",
+            secondary_source="BBC",
+        )
+
+
+def test_motm_is_explicitly_not_automated_from_sofascore():
+    result = contract.motm_automation_policy()
+
+    assert result["status"] == "NOT_AUTOMATED"
+    assert result["canonical_field"] == "motm_player_id"
+
+
 def test_brighton_and_leeds_captains_come_from_match_lineup_entries():
     lineups = _lineups()
 
