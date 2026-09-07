@@ -57,17 +57,35 @@ def build_ingestion_provenance_proposal(
     if not isinstance(validations, Mapping):
         raise IngestionProvenanceDiffError("evidence bundle has no validations")
     attendance = validations.get("attendance")
-    if not isinstance(attendance, Mapping) or attendance.get("status") not in {
-        "SECONDARY_SOURCE_FACT",
-        "SOURCE_FACT",
-    }:
-        raise IngestionProvenanceDiffError("attendance evidence is not an approved source fact")
+    if not isinstance(attendance, Mapping):
+        raise IngestionProvenanceDiffError("attendance evidence is missing")
 
-    attendance_value = _require_int(attendance.get("attendance"), "attendance")
-    if attendance_value <= 0:
-        raise IngestionProvenanceDiffError("attendance must be positive")
+    attendance_status = attendance.get("status")
+    if attendance_status not in {"SECONDARY_SOURCE_FACT", "SOURCE_FACT", "NOT_PUBLISHED"}:
+        raise IngestionProvenanceDiffError("attendance evidence is not resolved")
+    if attendance.get("blocking") is True:
+        raise IngestionProvenanceDiffError("attendance evidence remains blocking")
+
     attendance_source = _require_text(attendance.get("source"), "attendance source")
-    authority = "SECONDARY" if attendance.get("status") == "SECONDARY_SOURCE_FACT" else "PRIMARY"
+    if attendance_status == "NOT_PUBLISHED":
+        if attendance.get("attendance") is not None:
+            raise IngestionProvenanceDiffError("verified unpublished attendance must have a null value")
+        attendance_value = None
+        authority = "VERIFIED_ABSENCE"
+        validation_status = "NOT_PUBLISHED"
+        resolution_note = (
+            "Approved source was successfully checked and did not publish an attendance figure; "
+            "canonical attendance remains NULL and may be enriched later if a verified value appears."
+        )
+    else:
+        attendance_value = _require_int(attendance.get("attendance"), "attendance")
+        if attendance_value <= 0:
+            raise IngestionProvenanceDiffError("attendance must be positive")
+        authority = "SECONDARY" if attendance_status == "SECONDARY_SOURCE_FACT" else "PRIMARY"
+        validation_status = "VALIDATED"
+        resolution_note = (
+            "Attendance retained with field-level source attribution; stadium capacity is not an attendance source."
+        )
 
     operations = [
         {
@@ -111,8 +129,8 @@ def build_ingestion_provenance_proposal(
                 "value_json": attendance_value,
                 "source_provider": attendance_source,
                 "authority": authority,
-                "validation_status": "VALIDATED",
-                "resolution_note": "Attendance retained with field-level source attribution; stadium capacity is not an attendance source.",
+                "validation_status": validation_status,
+                "resolution_note": resolution_note,
             },
             "deferred_parent_key": {
                 "column": "ingestion_run_id",
@@ -130,6 +148,7 @@ def build_ingestion_provenance_proposal(
         "canonical_match_id": match_id,
         "importer_git_sha": git_sha,
         "attendance": attendance_value,
+        "attendance_status": attendance_status,
         "attendance_source": attendance_source,
         "attendance_authority": authority,
         "operations": operations,
