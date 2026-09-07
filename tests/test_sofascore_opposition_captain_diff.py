@@ -59,8 +59,17 @@ def test_brighton_captain_is_preserved_without_namespace_contamination():
     assert result["destination_deployed"] is False
     assert result["captain_name_raw"] == "Lewis Dunk"
     assert result["provider_player_id"] == 115365
-    assert operation["action"] == "INSERT_AFTER_SCHEMA_DEPLOYMENT"
-    assert operation["values"] == {"match_id": 4857, "captain_name_raw": "Lewis Dunk"}
+    assert operation["action"] == "INSERT_AFTER_PARENT_KEY_ALLOCATION_AND_SCHEMA_DEPLOYMENT"
+    assert operation["values"] == {
+        "match_id": 4857,
+        "captain_name_raw": "Lewis Dunk",
+        "ingestion_run_id": "<FROM_PARENT_INSERT>",
+    }
+    assert operation["deferred_parent_key"] == {
+        "column": "ingestion_run_id",
+        "from_operation": "ingestion.runs",
+        "allocation": "FROM_PARENT_INSERT",
+    }
     assert operation["provider_evidence"]["provider_player_id"] == 115365
     assert operation["canonical_opposition_player_id"] is None
     assert operation["provider_id_written_to_canonical_id"] is False
