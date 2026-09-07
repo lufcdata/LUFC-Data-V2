@@ -201,7 +201,7 @@ def test_brighton_diff_is_read_only_and_blocks_on_explicit_schema_gaps():
     assert result["database_writes"] == 0
     assert result["sql_generated"] is False
     assert result["promotion_performed"] is False
-    assert result["schema_gap_count"] >= 5
+    assert result["schema_gap_count"] >= 4
 
 
 def test_brighton_match_operation_uses_real_opponent_club_namespace():
@@ -238,6 +238,40 @@ def test_jayden_bogle_goal_uses_production_backed_leeds_player_mapping():
     assert goal["values"]["scorer_name_raw"] == "Jayden Bogle"
     assert goal["values"]["minute_normalised"] == 15
     assert goal["values"]["body_part"] == "right-foot"
+
+
+def test_reconciled_leeds_substitutions_route_to_existing_canonical_table():
+    result = canonical_diff.build_proposed_canonical_diff(**_kwargs())
+    rows = [row for row in result["operations"] if row["table"] == "match_substitutions"]
+
+    assert result["leeds_substitution_operation_count"] == 4
+    assert len(rows) == 4
+    assert all(row["action"] == "INSERT" for row in rows)
+    assert all(row["values"]["relationship_status"] == "proven" for row in rows)
+    assert all(row["values"]["evidence"] == "direct_source" for row in rows)
+    assert all(row["values"]["timing_known"] is True for row in rows)
+    assert [row["values"]["minute_base"] for row in rows] == [61, 62, 73, 73]
+    assert all(row["values"]["timing_phase"] == "second_half" for row in rows)
+    assert not any(gap["field"] == "post-match substitution ingestion" for gap in result["schema_gaps"])
+
+
+def test_substitution_stoppage_time_is_preserved_not_flattened():
+    kwargs = _kwargs()
+    kwargs["leeds_substitutions"] = [
+        {
+            "player_out": 929132,
+            "player_in": 886930,
+            "minute_base": 90,
+            "stoppage_minute": 3,
+        }
+    ]
+    result = canonical_diff.build_proposed_canonical_diff(**kwargs)
+    row = next(row for row in result["operations"] if row["table"] == "match_substitutions")
+
+    assert row["values"]["minute_raw"] == "90+3'"
+    assert row["values"]["minute_base"] == 90
+    assert row["values"]["stoppage_minute"] == 3
+    assert row["values"]["timing_phase"] == "second_half"
 
 
 def test_opposition_captain_does_not_require_fake_leeds_player_mapping():
