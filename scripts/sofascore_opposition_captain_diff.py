@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Build a zero-write proposal for an opposition captain source fact.
 
-Production currently has a Leeds captain field but no audited canonical destination for
-opposition captains or opposition-player identities. Preserve the source fact without
-forcing a SofaScore player ID into the Leeds `players` namespace.
+Production currently has a Leeds captain field but no deployed audited canonical
+destination for opposition captains or opposition-player identities. Preserve the
+source fact without forcing a SofaScore player ID into the Leeds `players` namespace.
 """
 
 from __future__ import annotations
@@ -74,11 +74,17 @@ def build_opposition_captain_proposal(
 
     operation = {
         "table": "opposition_captains",
-        "action": "INSERT_AFTER_SCHEMA_DEPLOYMENT",
+        "action": "INSERT_AFTER_PARENT_KEY_ALLOCATION_AND_SCHEMA_DEPLOYMENT",
         "key": {"match_id": match_id},
         "values": {
             "match_id": match_id,
             "captain_name_raw": name,
+            "ingestion_run_id": "<FROM_PARENT_INSERT>",
+        },
+        "deferred_parent_key": {
+            "column": "ingestion_run_id",
+            "from_operation": "ingestion.runs",
+            "allocation": "FROM_PARENT_INSERT",
         },
         "provider_evidence": {
             "provider": "sofascore",
@@ -101,7 +107,7 @@ def build_opposition_captain_proposal(
         "provider_player_id": provider_id,
         "operations": [operation],
         "operation_count": 1,
-        "blocker": "no audited canonical opposition-captain/opposition-player destination exists",
+        "blocker": "opposition captain destination and parent ingestion run are not deployed",
         "database_writes": 0,
         "sql_generated": False,
         "promotion_performed": False,
