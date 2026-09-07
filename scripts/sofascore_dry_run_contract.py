@@ -7,6 +7,7 @@ captured provider payloads and return explicit PASS / N/A / BLOCKED semantics.
 
 from __future__ import annotations
 
+from collections import Counter
 from typing import Any
 
 # Fail closed: every competition must be deliberately classified before a dry run
@@ -243,6 +244,297 @@ def summarize_lineups(lineups: dict[str, Any]) -> dict[str, Any]:
         "confirmed": True,
         "home": summarize_lineup_side(lineups, "home"),
         "away": summarize_lineup_side(lineups, "away"),
+        "database_writes": 0,
+        "canonical_lufc_ids_assigned": False,
+    }
+
+
+def _incident_rows(incidents: dict[str, Any]) -> list[dict[str, Any]]:
+    rows = incidents.get("incidents")
+    if not isinstance(rows, list):
+        raise ContractError("incidents.incidents is missing")
+    return [row for row in rows if isinstance(row, dict)]
+
+
+def _event_score(event: dict[str, Any], side: str) -> int:
+    score = event.get(f"{side}Score")
+    if not isinstance(score, dict):
+        raise ContractError(f"event.{side}Score is missing")
+    for key in ("current", "display", "normaltime"):
+        value = score.get(key)
+        if isinstance(value, int):
+            return value
+    raise ContractError(f"event.{side}Score has no numeric final score")
+
+
+def _event_half_time_score(event: dict[str, Any], side: str) -> int:
+    score = event.get(f"{side}Score")
+    if not isinstance(score, dict) or not isinstance(score.get("period1"), int):
+        raise ContractError(f"event.{side}Score.period1 is missing")
+    return score["period1"]
+
+
+def _incident_minute_key(row: dict[str, Any]) -> tuple[int, int]:
+    time = row.get("time")
+    added_time = row.get("addedTime")
+    return (
+        time if isinstance(time, int) else 10_000,
+        added_time if isinstance(added_time, int) and added_time != 999 else 0,
+    )
+
+
+def reconcile_goals_with_scores(event: dict[str, Any], incidents: dict[str, Any]) -> dict[str, Any]:
+    """Prove the chronological goal population reconstructs HT and final scores.
+
+    SofaScore incident arrays are not trusted to be chronological. Goal incidents are
+    sorted by minute/added minute, and each post-goal score must increase exactly one
+    side by one. The resulting score must equal both event HT and final score fields.
+    """
+    goals = [row for row in _incident_rows(incidents) if row.get("incidentType") == "goal"]
+    goals.sort(key=_incident_minute_key)
+
+    home_score = 0
+    away_score = 0
+    half_home = 0
+    half_away = 0
+    chronology = []
+
+    for goal in goals:
+        next_home = goal.get("homeScore")
+        next_away = goal.get("awayScore")
+        if not isinstance(next_home, int) or not isinstance(next_away, int):
+            raise ContractError("goal incident is missing numeric post-goal score")
+
+        home_delta = next_home - home_score
+        away_delta = next_away - away_score
+        if (home_delta, away_delta) not in {(1, 0), (0, 1)}:
+            raise ContractError(
+                f"goal score sequence is invalid: {home_score}-{away_score} -> {next_home}-{next_away}"
+            )
+
+        home_score, away_score = next_home, next_away
+        minute, added = _incident_minute_key(goal)
+        if minute <= 45:
+            half_home, half_away = home_score, away_score
+
+        player = goal.get("player")
+        chronology.append(
+            {
+                "time": minute,
+                "added_time": added,
+                "is_home": goal.get("isHome"),
+                "sofascore_player_id": player.get("id") if isinstance(player, dict) else None,
+                "home_score": home_score,
+                "away_score": away_score,
+            }
+        )
+
+    expected_final = (_event_score(event, "home"), _event_score(event, "away"))
+    if (home_score, away_score) != expected_final:
+        raise ContractError(
+            f"goal incidents end {home_score}-{away_score} but event final score is "
+            f"{expected_final[0]}-{expected_final[1]}"
+        )
+
+    expected_half = (_event_half_time_score(event, "home"), _event_half_time_score(event, "away"))
+    if (half_home, half_away) != expected_half:
+        raise ContractError(
+            f"goal incidents reconstruct HT {half_home}-{half_away} but event HT score is "
+            f"{expected_half[0]}-{expected_half[1]}"
+        )
+
+    return {
+        "status": "PASS",
+        "goal_count": len(goals),
+        "half_time_score": {"home": half_home, "away": half_away},
+        "final_score": {"home": home_score, "away": away_score},
+        "chronology": chronology,
+    }
+
+
+def _substitution_key(row: dict[str, Any]) -> tuple[Any, ...]:
+    player_in = row.get("playerIn")
+    player_out = row.get("playerOut")
+    if not isinstance(player_in, dict) or not isinstance(player_out, dict):
+        raise ContractError("substitution is missing playerIn/playerOut")
+    player_in_id = player_in.get("id")
+    player_out_id = player_out.get("id")
+    if not isinstance(player_in_id, int) or not isinstance(player_out_id, int):
+        raise ContractError("substitution is missing numeric provider player IDs")
+    time = row.get("time")
+    if not isinstance(time, int):
+        raise ContractError("substitution is missing numeric time")
+    added_time = row.get("addedTime")
+    return (
+        row.get("isHome"),
+        player_in_id,
+        player_out_id,
+        time,
+        added_time if isinstance(added_time, int) else 0,
+    )
+
+
+def reconcile_substitutions(
+    incidents: dict[str, Any], average_positions: dict[str, Any]
+) -> dict[str, Any]:
+    """Require the independent incident and average-position substitution sets to match."""
+    incident_subs = [
+        row for row in _incident_rows(incidents) if row.get("incidentType") == "substitution"
+    ]
+    position_subs = average_positions.get("substitutions")
+    if not isinstance(position_subs, list):
+        raise ContractError("average-positions substitutions are missing")
+    position_subs = [row for row in position_subs if isinstance(row, dict)]
+
+    incident_keys = Counter(_substitution_key(row) for row in incident_subs)
+    position_keys = Counter(_substitution_key(row) for row in position_subs)
+    if incident_keys != position_keys:
+        missing = list((incident_keys - position_keys).elements())
+        extra = list((position_keys - incident_keys).elements())
+        raise ContractError(
+            f"substitution populations disagree: missing_from_average_positions={missing}, "
+            f"extra_in_average_positions={extra}"
+        )
+
+    return {
+        "status": "PASS",
+        "substitution_count": len(incident_subs),
+        "home_count": sum(1 for row in incident_subs if row.get("isHome") is True),
+        "away_count": sum(1 for row in incident_subs if row.get("isHome") is False),
+    }
+
+
+def _all_period_stat_item(statistics: dict[str, Any], name: str) -> dict[str, Any]:
+    periods = statistics.get("statistics")
+    if not isinstance(periods, list):
+        raise ContractError("statistics.statistics is missing")
+    matches = []
+    for period in periods:
+        if not isinstance(period, dict) or period.get("period") != "ALL":
+            continue
+        groups = period.get("groups")
+        if not isinstance(groups, list):
+            continue
+        for group in groups:
+            if not isinstance(group, dict):
+                continue
+            items = group.get("statisticsItems")
+            if not isinstance(items, list):
+                continue
+            for item in items:
+                if isinstance(item, dict) and item.get("name") == name:
+                    matches.append(item)
+    if len(matches) != 1:
+        raise ContractError(f"expected exactly one ALL statistic named {name!r}; found {len(matches)}")
+    return matches[0]
+
+
+def _numeric_stat_pair(statistics: dict[str, Any], name: str) -> tuple[int, int]:
+    item = _all_period_stat_item(statistics, name)
+    home = item.get("homeValue")
+    away = item.get("awayValue")
+    if not isinstance(home, int) or not isinstance(away, int):
+        raise ContractError(f"statistic {name!r} does not have integer homeValue/awayValue")
+    return home, away
+
+
+def reconcile_cards_with_statistics(
+    incidents: dict[str, Any], statistics: dict[str, Any]
+) -> dict[str, Any]:
+    """Cross-check yellow-card incident counts against the ALL statistics population."""
+    yellow_cards = [
+        row
+        for row in _incident_rows(incidents)
+        if row.get("incidentType") == "card" and row.get("incidentClass") == "yellow"
+    ]
+    incident_home = sum(1 for row in yellow_cards if row.get("isHome") is True)
+    incident_away = sum(1 for row in yellow_cards if row.get("isHome") is False)
+    stat_home, stat_away = _numeric_stat_pair(statistics, "Yellow cards")
+    if (incident_home, incident_away) != (stat_home, stat_away):
+        raise ContractError(
+            f"yellow-card populations disagree: incidents={incident_home}-{incident_away}, "
+            f"statistics={stat_home}-{stat_away}"
+        )
+    return {
+        "status": "PASS",
+        "yellow_cards": {"home": incident_home, "away": incident_away},
+    }
+
+
+def reconcile_shotmap_with_statistics(
+    shotmap: dict[str, Any], statistics: dict[str, Any]
+) -> dict[str, Any]:
+    """Cross-check shotmap population and goal shots against aggregate statistics."""
+    shots = shotmap.get("shotmap")
+    if not isinstance(shots, list):
+        raise ContractError("shotmap.shotmap is missing")
+    shots = [row for row in shots if isinstance(row, dict)]
+    home_shots = sum(1 for row in shots if row.get("isHome") is True)
+    away_shots = sum(1 for row in shots if row.get("isHome") is False)
+    stat_home, stat_away = _numeric_stat_pair(statistics, "Total shots")
+    if (home_shots, away_shots) != (stat_home, stat_away):
+        raise ContractError(
+            f"shot populations disagree: shotmap={home_shots}-{away_shots}, "
+            f"statistics={stat_home}-{stat_away}"
+        )
+    goal_shots = [row for row in shots if row.get("shotType") == "goal"]
+    return {
+        "status": "PASS",
+        "shot_count": len(shots),
+        "shots": {"home": home_shots, "away": away_shots},
+        "goal_shot_count": len(goal_shots),
+    }
+
+
+def reconcile_goal_shots(incidents: dict[str, Any], shotmap: dict[str, Any]) -> dict[str, Any]:
+    """Require every goal incident to have one matching goal shot by side/player/minute."""
+    goals = [row for row in _incident_rows(incidents) if row.get("incidentType") == "goal"]
+    shots = shotmap.get("shotmap")
+    if not isinstance(shots, list):
+        raise ContractError("shotmap.shotmap is missing")
+    goal_shots = [row for row in shots if isinstance(row, dict) and row.get("shotType") == "goal"]
+
+    def incident_goal_key(row: dict[str, Any]) -> tuple[Any, ...]:
+        player = row.get("player")
+        player_id = player.get("id") if isinstance(player, dict) else None
+        return row.get("isHome"), player_id, row.get("time")
+
+    def shot_goal_key(row: dict[str, Any]) -> tuple[Any, ...]:
+        player = row.get("player")
+        player_id = player.get("id") if isinstance(player, dict) else None
+        return row.get("isHome"), player_id, row.get("time")
+
+    incident_keys = Counter(incident_goal_key(row) for row in goals)
+    shot_keys = Counter(shot_goal_key(row) for row in goal_shots)
+    if incident_keys != shot_keys:
+        missing = list((incident_keys - shot_keys).elements())
+        extra = list((shot_keys - incident_keys).elements())
+        raise ContractError(
+            f"goal incident/shotmap links disagree: missing_goal_shots={missing}, "
+            f"extra_goal_shots={extra}"
+        )
+    return {
+        "status": "PASS",
+        "linked_goal_count": len(goals),
+    }
+
+
+def reconcile_match_populations(
+    *,
+    event: dict[str, Any],
+    incidents: dict[str, Any],
+    statistics: dict[str, Any],
+    shotmap: dict[str, Any],
+    average_positions: dict[str, Any],
+) -> dict[str, Any]:
+    """Run the independent population checks required before a canonical proposal."""
+    return {
+        "status": "PASS",
+        "goals": reconcile_goals_with_scores(event, incidents),
+        "substitutions": reconcile_substitutions(incidents, average_positions),
+        "cards": reconcile_cards_with_statistics(incidents, statistics),
+        "shots": reconcile_shotmap_with_statistics(shotmap, statistics),
+        "goal_shots": reconcile_goal_shots(incidents, shotmap),
         "database_writes": 0,
         "canonical_lufc_ids_assigned": False,
     }
