@@ -43,3 +43,16 @@ jobs:
       - name: Discover next fixture and finished uncaptured match
         if: steps.uk-time.outputs.run == 'true'
         run: python scripts/sofascore_fixture_scheduler.py --no-collect
+
+      # Safety preparation for the future collection phase. Once collection is
+      # enabled, every raw capture must survive the ephemeral Actions runner.
+      # upload-artifact is harmless while --no-collect remains active: if no
+      # capture exists, this step simply finds no files and does not fail.
+      - name: Preserve immutable SofaScore raw capture
+        if: steps.uk-time.outputs.run == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: sofascore-raw-${{ github.run_id }}
+          path: source_data/sofascore/**
+          if-no-files-found: ignore
+          retention-days: 14
