@@ -9,6 +9,7 @@ routing is unresolved (for example opposition manager relations or provider IDs)
 
 from __future__ import annotations
 
+from copy import deepcopy
 from typing import Any, Mapping
 
 
@@ -69,7 +70,9 @@ def build_canonical_match_enrichment(
     _require_pass(source_bundle, "source bundle")
     _require_pass(evidence_bundle, "evidence bundle")
 
-    if source_bundle.get("sofascore_event_id") != evidence_bundle.get("sofascore_event_id", source_bundle.get("sofascore_event_id")):
+    if source_bundle.get("sofascore_event_id") != evidence_bundle.get(
+        "sofascore_event_id", source_bundle.get("sofascore_event_id")
+    ):
         raise CanonicalMatchEnrichmentError("source/evidence event IDs do not match")
 
     canonical_ids: dict[str, int] = {}
@@ -80,8 +83,12 @@ def build_canonical_match_enrichment(
     if not isinstance(leeds_is_home, bool):
         raise CanonicalMatchEnrichmentError("source bundle has no Leeds home/away identity")
 
-    reconciliation = _require_mapping(source_bundle.get("reconciliation"), "source_bundle.reconciliation")
-    goals = _require_mapping(reconciliation.get("goals"), "source_bundle.reconciliation.goals")
+    reconciliation = _require_mapping(
+        source_bundle.get("reconciliation"), "source_bundle.reconciliation"
+    )
+    goals = _require_mapping(
+        reconciliation.get("goals"), "source_bundle.reconciliation.goals"
+    )
     if goals.get("status") != "PASS":
         raise CanonicalMatchEnrichmentError("goal reconciliation is not PASS")
 
@@ -95,14 +102,20 @@ def build_canonical_match_enrichment(
     if not isinstance(chronology, list):
         raise CanonicalMatchEnrichmentError("goal chronology is missing")
 
-    validations = _require_mapping(evidence_bundle.get("validations"), "evidence_bundle.validations")
+    validations = _require_mapping(
+        evidence_bundle.get("validations"), "evidence_bundle.validations"
+    )
     attendance = _require_mapping(validations.get("attendance"), "attendance validation")
     formations = _require_mapping(validations.get("formations"), "formation validation")
-    league_position = _require_mapping(validations.get("league_position"), "league-position validation")
+    league_position = _require_mapping(
+        validations.get("league_position"), "league-position validation"
+    )
 
     attendance_value = _require_int(attendance.get("attendance"), "attendance")
     leeds_formation_side = "home" if leeds_is_home else "away"
-    leeds_formation = _require_mapping(formations.get(leeds_formation_side), "Leeds formation validation")
+    leeds_formation = _require_mapping(
+        formations.get(leeds_formation_side), "Leeds formation validation"
+    )
     formation_value = str(leeds_formation.get("formation") or "").strip()
     if not formation_value:
         raise CanonicalMatchEnrichmentError("Leeds formation is missing")
@@ -110,9 +123,13 @@ def build_canonical_match_enrichment(
     if league_position.get("status") == "NOT_APPLICABLE":
         league_position_value = None
     elif league_position.get("status") == "PASS":
-        league_position_value = _require_int(league_position.get("position"), "league position")
+        league_position_value = _require_int(
+            league_position.get("position"), "league position"
+        )
     else:
-        raise CanonicalMatchEnrichmentError("league-position validation is neither PASS nor NOT_APPLICABLE")
+        raise CanonicalMatchEnrichmentError(
+            "league-position validation is neither PASS nor NOT_APPLICABLE"
+        )
 
     leeds_half = half_home if leeds_is_home else half_away
     opponent_half = half_away if leeds_is_home else half_home
@@ -153,3 +170,70 @@ def build_canonical_match_enrichment(
         "database_writes": 0,
         "canonical_promotion_performed": False,
     }
+
+
+def merge_match_enrichment_into_canonical_diff(
+    *,
+    canonical_diff: Mapping[str, Any],
+    enrichment: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Return a copied canonical diff with only its single `matches` operation enriched.
+
+    This never converts a BLOCKED diff into PASS and never removes schema gaps. It only
+    adds/validates values for columns whose canonical destinations are already established.
+    Existing contradictory values fail closed rather than being silently overwritten.
+    """
+    if canonical_diff.get("database_writes") != 0:
+        raise CanonicalMatchEnrichmentError("canonical diff reports database writes")
+    if canonical_diff.get("promotion_performed") not in {None, False}:
+        raise CanonicalMatchEnrichmentError("canonical diff reports promotion")
+    if enrichment.get("status") != "PASS":
+        raise CanonicalMatchEnrichmentError("match enrichment is not PASS")
+    if enrichment.get("database_writes") != 0:
+        raise CanonicalMatchEnrichmentError("match enrichment reports database writes")
+    if enrichment.get("canonical_promotion_performed") is not False:
+        raise CanonicalMatchEnrichmentError("match enrichment reports promotion")
+
+    diff_event_id = canonical_diff.get("sofascore_event_id")
+    enrichment_event_id = enrichment.get("sofascore_event_id")
+    if diff_event_id != enrichment_event_id:
+        raise CanonicalMatchEnrichmentError(
+            "canonical diff and match enrichment event IDs do not match"
+        )
+
+    result = deepcopy(dict(canonical_diff))
+    operations = result.get("operations")
+    if not isinstance(operations, list):
+        raise CanonicalMatchEnrichmentError("canonical diff has no operations list")
+
+    match_operations = [
+        row
+        for row in operations
+        if isinstance(row, dict) and row.get("table") == "matches"
+    ]
+    if len(match_operations) != 1:
+        raise CanonicalMatchEnrichmentError(
+            f"expected exactly one matches operation; found {len(match_operations)}"
+        )
+
+    values = match_operations[0].get("values")
+    if not isinstance(values, dict):
+        raise CanonicalMatchEnrichmentError("matches operation has no values map")
+    enrichment_values = _require_mapping(enrichment.get("values"), "enrichment.values")
+
+    for key, value in enrichment_values.items():
+        if key in values and values[key] != value:
+            raise CanonicalMatchEnrichmentError(
+                f"canonical match value conflict for {key}: {values[key]!r} != {value!r}"
+            )
+        values[key] = value
+
+    result["match_enrichment"] = {
+        "status": "PASS",
+        "field_sources": deepcopy(dict(enrichment.get("field_sources") or {})),
+        "database_writes": 0,
+        "canonical_promotion_performed": False,
+    }
+    result["database_writes"] = 0
+    result["promotion_performed"] = False
+    return result
