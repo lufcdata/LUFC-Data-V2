@@ -2,16 +2,17 @@
 """Pure validation helpers for read-only SofaScore ingestion dry runs.
 
 No network or database access lives here. These helpers operate only on already
-captured SofaScore payloads and return explicit PASS / N/A / BLOCKED semantics.
+captured provider payloads and return explicit PASS / N/A / BLOCKED semantics.
 """
 
 from __future__ import annotations
 
 from typing import Any
 
-# Fail closed: only competitions explicitly classified as leagues may trigger a
-# post-match league-position lookup. Add future league competitions deliberately.
+# Fail closed: every competition must be deliberately classified before a dry run
+# can decide whether post-match league-position data is required.
 LEAGUE_COMPETITION_NAMES = {"premier league"}
+NON_LEAGUE_COMPETITION_NAMES = {"efl cup", "fa cup"}
 
 
 class ContractError(RuntimeError):
@@ -28,18 +29,104 @@ def competition_name(event: dict[str, Any]) -> str:
 def league_position_requirement(event: dict[str, Any]) -> dict[str, str]:
     """Return whether the fixture should have a league-position lookup.
 
-    Non-league fixtures are explicitly N/A rather than missing. Unknown competition
-    names fail closed as non-league until deliberately classified.
+    League fixtures require a post-match standings snapshot. Explicitly classified
+    cup fixtures are N/A. Missing or unknown competition names block the dry run so
+    a new competition can never silently bypass the standings rule.
     """
-    name = competition_name(event)
-    if name.casefold() in LEAGUE_COMPETITION_NAMES:
+    name = competition_name(event).strip()
+    normalized = name.casefold()
+    if normalized in LEAGUE_COMPETITION_NAMES:
         return {
             "status": "REQUIRED",
             "reason": f"league fixture: {name}",
         }
+    if normalized in NON_LEAGUE_COMPETITION_NAMES:
+        return {
+            "status": "NOT_APPLICABLE",
+            "reason": f"non-league fixture: {name}",
+        }
+    raise ContractError(f"competition is not classified: {name or '<missing>'}")
+
+
+def attendance_candidate(
+    sofascore_attendance: Any,
+    *,
+    secondary_attendance: Any = None,
+    secondary_source: str | None = None,
+) -> dict[str, Any]:
+    """Return a source-attributed attendance candidate without inference.
+
+    SofaScore may omit attendance. An approved secondary source can supply it, but
+    stadium capacity or any other proxy must never be substituted for attendance.
+    """
+    if isinstance(sofascore_attendance, int) and sofascore_attendance > 0:
+        return {
+            "status": "SOURCE_FACT",
+            "attendance": sofascore_attendance,
+            "source": "sofascore",
+        }
+    if isinstance(secondary_attendance, int) and secondary_attendance > 0:
+        if not secondary_source or not secondary_source.strip():
+            raise ContractError("secondary attendance has no source attribution")
+        return {
+            "status": "SECONDARY_SOURCE_FACT",
+            "attendance": secondary_attendance,
+            "source": secondary_source.strip(),
+        }
     return {
-        "status": "NOT_APPLICABLE",
-        "reason": f"non-league fixture: {name or 'unknown competition'}",
+        "status": "UNAVAILABLE",
+        "attendance": None,
+        "source": None,
+    }
+
+
+def validate_formation_crosscheck(
+    sofascore_formation: str,
+    *,
+    secondary_formation: str | None = None,
+    secondary_source: str | None = None,
+) -> dict[str, Any]:
+    """Validate a SofaScore formation against an optional secondary source.
+
+    SofaScore remains the primary structured formation source. A conflicting
+    secondary source blocks the dry run rather than silently overwriting it.
+    """
+    primary = sofascore_formation.strip() if isinstance(sofascore_formation, str) else ""
+    if not primary:
+        raise ContractError("SofaScore formation is missing")
+
+    if secondary_formation is None:
+        return {
+            "status": "SOURCE_FACT",
+            "formation": primary,
+            "source": "sofascore",
+            "crosscheck": "NOT_PROVIDED",
+        }
+
+    secondary = secondary_formation.strip() if isinstance(secondary_formation, str) else ""
+    if not secondary:
+        raise ContractError("secondary formation is empty")
+    if not secondary_source or not secondary_source.strip():
+        raise ContractError("secondary formation has no source attribution")
+    if secondary != primary:
+        raise ContractError(
+            f"formation conflict: SofaScore={primary}, {secondary_source.strip()}={secondary}"
+        )
+
+    return {
+        "status": "VALIDATED",
+        "formation": primary,
+        "source": "sofascore",
+        "crosscheck_source": secondary_source.strip(),
+    }
+
+
+def motm_automation_policy() -> dict[str, Any]:
+    """Make the deliberate MOTM exclusion machine-readable."""
+    return {
+        "status": "NOT_AUTOMATED",
+        "canonical_field": "motm_player_id",
+        "reason": "SofaScore statistical rankings are not broadcaster Man of the Match awards",
     }
 
 
