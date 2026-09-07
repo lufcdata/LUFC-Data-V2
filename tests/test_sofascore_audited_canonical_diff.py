@@ -52,18 +52,20 @@ def _canonical_context():
 
 
 def _source():
-    source = fixtures._source()
-    source["lineups"]["home"]["players"] = [
+    source = fixtures._source_bundle()
+    source["lineups"]["home"]["starters"] = [
         {
             "sofascore_player_id": 115365,
             "name": "Lewis Dunk",
             "shirt_number": 5,
+            "jersey_number": 5,
             "substitute": False,
         },
         {
             "sofascore_player_id": 1405212,
             "name": "Luka Vušković",
             "shirt_number": 44,
+            "jersey_number": 44,
             "substitute": False,
         },
     ]
@@ -80,7 +82,7 @@ def _source():
                 "period": "1ST",
                 "event_json": {
                     "player": {"id": 929132, "name": "Jayden Bogle"},
-                    "assist1": {"id": 1118207, "name": "Ao Tanaka"},
+                    "assist1": {"id": 871886, "name": "Ao Tanaka"},
                     "isHome": False,
                     "incidentType": "goal",
                 },
@@ -94,7 +96,7 @@ def _source():
                 "period": "2ND",
                 "event_json": {
                     "player": {"id": 1405212, "name": "Luka Vušković"},
-                    "assist1": {"id": 1056597, "name": "Maxim De Cuyper"},
+                    "assist1": {"id": 997152, "name": "Maxim De Cuyper"},
                     "isHome": True,
                     "incidentType": "goal",
                 },
@@ -105,38 +107,11 @@ def _source():
 
 
 def _evidence():
-    evidence = fixtures._evidence()
-    evidence["validations"]["captains"] = {
-        "status": "PASS",
-        "home_captain_provider_id": 115365,
-        "away_captain_provider_id": 847097,
-    }
-    evidence["validations"]["managers"] = {
-        "status": "PASS",
-        "home_manager_provider_id": 788529,
-        "away_manager_provider_id": 265307,
-    }
-    evidence["validations"]["attendance"] = {
-        "status": "SECONDARY_SOURCE_FACT",
-        "attendance": 31661,
-        "source": "BBC Sport",
-    }
-    return evidence
+    return fixtures._evidence_bundle()
 
 
 def _identity():
-    identity = fixtures._identity()
-    identity["mappings"].append(
-        {
-            "scope": "opposition_manager",
-            "provider": "sofascore",
-            "provider_id": 788529,
-            "canonical_namespace": "managerial_people.managerial_person_id",
-            "canonical_id": 822,
-            "status": "RESOLVED",
-        }
-    )
-    return identity
+    return fixtures._identity_package()
 
 
 def _build():
