@@ -102,6 +102,16 @@ def build_ingestion_run_package(
         "payload_count": len(raw_manifest),
         "manifest_sha256": raw_manifest_sha256,
     }
+    # Staged events are an auditable integrity validation carried in the package.
+    # They are not one of the 15 canonical promotion gates, but retaining the PASS
+    # result here prevents a source-derived validation from disappearing at hand-off.
+    gate_validations["staged_events"] = {
+        "status": "PASS",
+        "event_count": staged_events.get("event_count"),
+        "schema_gap_event_count": staged_events.get("schema_gap_event_count"),
+        "eligible_event_count": staged_events.get("eligible_event_count"),
+        "sha256": staged_events_sha256,
+    }
     gate_validations["canonical_diff"] = {
         "status": "PASS" if canonical_diff.get("status") == "PASS" else "BLOCKED",
         "schema_gap_count": canonical_diff.get("schema_gap_count"),
