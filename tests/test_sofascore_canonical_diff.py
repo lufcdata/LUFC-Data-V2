@@ -15,13 +15,21 @@ sys.modules[SPEC.name] = canonical_diff
 SPEC.loader.exec_module(canonical_diff)
 
 
-def _resolution(entity_type: str, provider_id: int, canonical_id: int) -> dict:
+def _resolution(entity_scope: str, provider_id: int, canonical_id: int) -> dict:
+    namespaces = {
+        "match": "matches.match_id",
+        "opponent_club": "clubs.club_id",
+        "leeds_player": "players.player_id",
+        "leeds_manager": "managers.manager_id",
+        "opposition_manager": "managerial_people.managerial_person_id",
+    }
     return {
         "status": "RESOLVED",
         "provider": "sofascore",
-        "entity_type": entity_type,
+        "entity_scope": entity_scope,
         "provider_id": provider_id,
         "canonical_id": canonical_id,
+        "canonical_namespace": namespaces[entity_scope],
     }
 
 
@@ -47,28 +55,39 @@ def _identity_package() -> dict:
         866191,
         828639,
         1146148,
-        115365,
     ]
+    canonical_by_provider = {
+        # Production-backed reference identities used by this regression.
+        929132: 877,  # Jayden Bogle
+        871886: 878,  # Ao Tanaka
+    }
     return {
         "status": "PASS",
         "match": _resolution("match", 16363258, 4857),
-        "teams": {
-            "resolutions": [
-                _resolution("team", 30, 130),
-                _resolution("team", 34, 999),
-            ]
+        "leeds_team": {
+            "status": "VALIDATED_PROVIDER_IDENTITY",
+            "provider": "sofascore",
+            "provider_id": 34,
+            "canonical_mapping": "NOT_APPLICABLE",
         },
-        "players": {
+        "opponent_club": _resolution("opponent_club", 30, 75),
+        "leeds_players": {
+            "status": "PASS",
             "resolutions": [
-                _resolution("player", provider_id, 10000 + index)
+                _resolution(
+                    "leeds_player",
+                    provider_id,
+                    canonical_by_provider.get(provider_id, 10000 + index),
+                )
                 for index, provider_id in enumerate(player_provider_ids)
-            ]
+            ],
         },
-        "managers": {
-            "resolutions": [
-                _resolution("manager", 265307, 49),
-                _resolution("manager", 788529, 9001),
-            ]
+        "leeds_manager": _resolution("leeds_manager", 265307, 49),
+        "opposition_manager": _resolution("opposition_manager", 788529, 822),
+        "opposition_players": {
+            "status": "NOT_APPLICABLE",
+            "canonical_mapping": "NOT_APPLICABLE",
+            "reason": "opposition players must not be inserted into Leeds players",
         },
     }
 
@@ -177,18 +196,21 @@ def test_brighton_diff_is_read_only_and_blocks_on_explicit_schema_gaps():
     assert result["status"] == "BLOCKED"
     assert result["sofascore_event_id"] == 16363258
     assert result["canonical_match_id"] == 4857
+    assert result["identity_scope"] == "LUFC_SCOPED"
+    assert result["opposition_players_mapped_to_leeds_players"] is False
     assert result["database_writes"] == 0
     assert result["sql_generated"] is False
     assert result["promotion_performed"] is False
     assert result["schema_gap_count"] >= 5
 
 
-def test_brighton_match_operation_is_leeds_away_draw_with_bbc_attendance():
+def test_brighton_match_operation_uses_real_opponent_club_namespace():
     result = canonical_diff.build_proposed_canonical_diff(**_kwargs())
     match_operation = next(row for row in result["operations"] if row["table"] == "matches")
 
     assert match_operation["action"] == "INSERT"
     assert match_operation["key"] == {"match_id": 4857}
+    assert match_operation["values"]["opponent_id"] == 75
     assert match_operation["values"]["venue_type"] == "A"
     assert match_operation["values"]["leeds_score"] == 1
     assert match_operation["values"]["opponent_score"] == 1
@@ -197,7 +219,7 @@ def test_brighton_match_operation_is_leeds_away_draw_with_bbc_attendance():
     assert match_operation["values"]["formation"] == "3-5-2"
 
 
-def test_brighton_diff_proposes_exactly_20_player_match_rows():
+def test_brighton_diff_proposes_exactly_20_leeds_player_match_rows():
     result = canonical_diff.build_proposed_canonical_diff(**_kwargs())
     player_rows = [row for row in result["operations"] if row["table"] == "player_matches"]
 
@@ -206,16 +228,30 @@ def test_brighton_diff_proposes_exactly_20_player_match_rows():
     assert sum(row["values"]["substitute"] is True for row in player_rows) == 9
 
 
-def test_jayden_bogle_goal_uses_mapped_lufc_player_and_preserves_provider_event_key():
+def test_jayden_bogle_goal_uses_production_backed_leeds_player_mapping():
     result = canonical_diff.build_proposed_canonical_diff(**_kwargs())
     goal = next(row for row in result["operations"] if row["table"] == "goals")
 
     assert goal["key"]["provider_event_id"] == 8272133
+    assert goal["values"]["leeds_player_id"] == 877
+    assert goal["values"]["assist_player_id"] == 878
     assert goal["values"]["scorer_name_raw"] == "Jayden Bogle"
     assert goal["values"]["minute_normalised"] == 15
     assert goal["values"]["body_part"] == "right-foot"
-    assert isinstance(goal["values"]["leeds_player_id"], int)
-    assert goal["values"]["leeds_player_id"] != 929132
+
+
+def test_opposition_captain_does_not_require_fake_leeds_player_mapping():
+    package = _identity_package()
+    assert all(
+        row["provider_id"] != 115365
+        for row in package["leeds_players"]["resolutions"]
+    )
+
+    result = canonical_diff.build_proposed_canonical_diff(**_kwargs())
+    gap = next(row for row in result["schema_gaps"] if row["field"] == "opposition captain")
+
+    assert "115365" in gap["reason"]
+    assert "must not be inserted into Leeds players" in gap["reason"]
 
 
 def test_structured_opposition_goal_is_not_silently_forced_into_leeds_goals_schema():
@@ -226,6 +262,16 @@ def test_structured_opposition_goal_is_not_silently_forced_into_leeds_goals_sche
         and gap["status"] == "SCHEMA_GAP"
         for gap in result["schema_gaps"]
     )
+    goals = [row for row in result["operations"] if row["table"] == "goals"]
+    assert len(goals) == 1
+    assert goals[0]["values"]["leeds_player_id"] == 877
+
+
+def test_manager_namespaces_are_separate_and_validated():
+    result = canonical_diff.build_proposed_canonical_diff(**_kwargs())
+
+    assert result["validated_leeds_manager_id"] == 49
+    assert result["validated_opposition_managerial_person_id"] == 822
 
 
 def test_provider_event_id_never_becomes_canonical_match_id():
@@ -244,9 +290,17 @@ def test_incomplete_leeds_squad_blocks_diff():
         canonical_diff.build_proposed_canonical_diff(**kwargs)
 
 
-def test_unresolved_captain_identity_blocks_diff():
+def test_unresolved_leeds_captain_identity_blocks_diff():
     kwargs = _kwargs()
     kwargs["leeds_captain_provider_id"] = 999999999
 
-    with pytest.raises(canonical_diff.CanonicalDiffError, match="exactly one player identity"):
+    with pytest.raises(canonical_diff.CanonicalDiffError, match="exactly one Leeds player identity"):
+        canonical_diff.build_proposed_canonical_diff(**kwargs)
+
+
+def test_leeds_team_cannot_be_mapped_into_opponent_clubs():
+    kwargs = _kwargs()
+    kwargs["identity_package"]["leeds_team"]["canonical_mapping"] = "clubs.club_id"
+
+    with pytest.raises(canonical_diff.CanonicalDiffError, match="must not be mapped into opponent clubs"):
         canonical_diff.build_proposed_canonical_diff(**kwargs)
