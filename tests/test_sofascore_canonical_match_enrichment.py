@@ -72,6 +72,38 @@ def _context():
     }
 
 
+def _canonical_diff():
+    return {
+        "status": "BLOCKED",
+        "sofascore_event_id": 16363258,
+        "canonical_match_id": 4857,
+        "operations": [
+            {
+                "table": "matches",
+                "action": "INSERT",
+                "key": {"match_id": 4857},
+                "values": {
+                    "match_date": "2026-09-05",
+                    "attendance": 31661,
+                    "formation": "3-5-2",
+                },
+            },
+            {
+                "table": "player_matches",
+                "action": "INSERT",
+                "key": {"match_id": 4857, "player_id": 877},
+                "values": {"started": True, "substitute": False},
+            },
+        ],
+        "schema_gap_count": 1,
+        "schema_gaps": [
+            {"status": "SCHEMA_GAP", "field": "structured opposition goals"}
+        ],
+        "database_writes": 0,
+        "promotion_performed": False,
+    }
+
+
 def test_brighton_match_enrichment_routes_verified_values_to_existing_columns():
     result = module.build_canonical_match_enrichment(
         source_bundle=_source_bundle(),
@@ -148,4 +180,52 @@ def test_non_pass_source_bundle_blocks_enrichment():
             source_bundle=source,
             evidence_bundle=_evidence_bundle(),
             canonical_context=_context(),
+        )
+
+
+def test_match_enrichment_merges_only_into_matches_operation_and_keeps_blockers():
+    enrichment = module.build_canonical_match_enrichment(
+        source_bundle=_source_bundle(),
+        evidence_bundle=_evidence_bundle(),
+        canonical_context=_context(),
+    )
+    original = _canonical_diff()
+
+    result = module.merge_match_enrichment_into_canonical_diff(
+        canonical_diff=original,
+        enrichment=enrichment,
+    )
+
+    match = next(row for row in result["operations"] if row["table"] == "matches")
+    assert match["values"]["season_id"] == 101
+    assert match["values"]["competition_id"] == 12
+    assert match["values"]["competition_name_id"] == 12
+    assert match["values"]["manager_spell_id"] == 57
+    assert match["values"]["half_time_leeds_score"] == 1
+    assert match["values"]["half_time_opponent_score"] == 0
+    assert match["values"]["first_goal"] == "Scored"
+    assert match["values"]["league_position_after_match"] == 9
+    assert result["status"] == "BLOCKED"
+    assert result["schema_gaps"] == original["schema_gaps"]
+    assert result["database_writes"] == 0
+    assert result["promotion_performed"] is False
+    assert "season_id" not in original["operations"][0]["values"]
+
+
+def test_match_enrichment_rejects_contradictory_existing_canonical_value():
+    diff = _canonical_diff()
+    diff["operations"][0]["values"]["league_position_after_match"] = 8
+    enrichment = module.build_canonical_match_enrichment(
+        source_bundle=_source_bundle(),
+        evidence_bundle=_evidence_bundle(),
+        canonical_context=_context(),
+    )
+
+    with pytest.raises(
+        module.CanonicalMatchEnrichmentError,
+        match="canonical match value conflict for league_position_after_match",
+    ):
+        module.merge_match_enrichment_into_canonical_diff(
+            canonical_diff=diff,
+            enrichment=enrichment,
         )
