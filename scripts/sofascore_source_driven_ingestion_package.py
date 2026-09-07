@@ -25,6 +25,7 @@ class SourceDrivenPackageError(RuntimeError):
 
 SOURCE_DERIVED_VALIDATION_GATES = (
     "lineups",
+    "appearance_population",
     "goals",
     "scores",
     "substitutions",
