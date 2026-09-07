@@ -105,6 +105,40 @@ def _schema_gap(domain: str, field: str, reason: str, source: str) -> dict[str, 
     }
 
 
+def _substitution_minute(row: Mapping[str, Any]) -> tuple[str, int, int | None, str]:
+    minute_base = row.get("minute_base")
+    stoppage = row.get("stoppage_minute")
+    minute_raw = row.get("minute_raw")
+
+    if not isinstance(minute_base, int):
+        fallback = row.get("minute")
+        if isinstance(fallback, int):
+            minute_base = fallback
+        elif isinstance(fallback, str) and fallback.strip().rstrip("'").isdigit():
+            minute_base = int(fallback.strip().rstrip("'"))
+        else:
+            raise CanonicalDiffError("substitution minute_base is required")
+    if minute_base < 0:
+        raise CanonicalDiffError("substitution minute_base cannot be negative")
+    if stoppage is not None and (not isinstance(stoppage, int) or stoppage < 0):
+        raise CanonicalDiffError("substitution stoppage_minute must be a non-negative integer")
+
+    if isinstance(minute_raw, str) and minute_raw.strip():
+        raw = minute_raw.strip()
+    elif stoppage:
+        raw = f"{minute_base}+{stoppage}'"
+    else:
+        raw = f"{minute_base}'"
+
+    if minute_base == 46 and not stoppage:
+        phase = "half_time"
+    elif minute_base <= 45:
+        phase = "first_half"
+    else:
+        phase = "second_half"
+    return raw, minute_base, stoppage, phase
+
+
 def build_proposed_canonical_diff(
     *,
     fixture: Mapping[str, Any],
@@ -252,6 +286,40 @@ def build_proposed_canonical_diff(
             )
         )
 
+    substitution_rows = list(leeds_substitutions)
+    for row in substitution_rows:
+        off_provider_id = _require_int(row.get("player_out"), "substitution player_out provider ID")
+        on_provider_id = _require_int(row.get("player_in"), "substitution player_in provider ID")
+        if off_provider_id == on_provider_id:
+            raise CanonicalDiffError("substitution player_out and player_in must be different")
+        player_off_id = _resolved_leeds_player(identity_package, off_provider_id)
+        player_on_id = _resolved_leeds_player(identity_package, on_provider_id)
+        minute_raw, minute_base, stoppage_minute, timing_phase = _substitution_minute(row)
+        operations.append(
+            _operation(
+                "match_substitutions",
+                "INSERT",
+                {
+                    "match_id": canonical_match_id,
+                    "player_off_id": player_off_id,
+                    "player_on_id": player_on_id,
+                    "minute_base": minute_base,
+                    "stoppage_minute": stoppage_minute,
+                },
+                {
+                    "minute_raw": minute_raw,
+                    "minute_base": minute_base,
+                    "stoppage_minute": stoppage_minute,
+                    "timing_phase": timing_phase,
+                    "timing_known": True,
+                    "relationship_status": "proven",
+                    "evidence": "direct_source",
+                    "note": "SofaScore incidents reconciled against average-positions substitution population",
+                    "source_fragment": row.get("source_fragment"),
+                },
+            )
+        )
+
     schema_gaps: list[dict[str, str]] = []
     if list(opposition_goals):
         schema_gaps.append(
@@ -260,16 +328,6 @@ def build_proposed_canonical_diff(
                 "structured opposition goals",
                 "current goals table is Leeds-scorer-oriented and has no explicit opposition scorer identity destination",
                 "SofaScore incidents + shotmap",
-            )
-        )
-
-    if list(leeds_substitutions):
-        schema_gaps.append(
-            _schema_gap(
-                "substitutions",
-                "post-match substitution ingestion",
-                "existing historical substitution population needs an explicitly verified insert contract before automated promotion",
-                "SofaScore incidents + average-positions",
             )
         )
 
@@ -314,6 +372,7 @@ def build_proposed_canonical_diff(
         "canonical_match_id": canonical_match_id,
         "validated_leeds_manager_id": leeds_manager_id,
         "validated_opposition_managerial_person_id": opposition_manager_id,
+        "leeds_substitution_operation_count": len(substitution_rows),
         "operation_count": len(operations),
         "operations": operations,
         "schema_gap_count": len(schema_gaps),
