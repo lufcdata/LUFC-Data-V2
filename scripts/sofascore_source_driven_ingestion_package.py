@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
-"""Build one zero-write ingestion package directly from captured SofaScore payloads.
+"""Build zero-write ingestion packages directly from captured source evidence.
 
-This orchestration layer makes source-derived reconciliation and staged-event results
-authoritative for their gates. Callers may supply the remaining externally validated
-gates (fixture identity, managers, formations, attendance, league position, identity
-mapping, etc.), but they cannot override source-derived lineup/event populations.
+The base orchestration path makes source-derived reconciliation and staged-event
+results authoritative for their gates. The fully evidence-driven wrapper also derives
+fixture, captain, manager, formation, attendance and league-position gates from captured
+SofaScore payloads plus explicitly attributed secondary evidence. Only canonical identity
+mapping remains caller-supplied.
 
 No network or database access is performed here.
 """
@@ -13,6 +14,7 @@ from __future__ import annotations
 
 from typing import Any, Mapping
 
+from sofascore_evidence_validations import build_evidence_validations
 from sofascore_ingestion_run_package import build_ingestion_run_package
 from sofascore_source_derived_dry_run import build_source_derived_dry_run
 
@@ -30,6 +32,15 @@ SOURCE_DERIVED_VALIDATION_GATES = (
     "shots",
 )
 
+EVIDENCE_DERIVED_VALIDATION_GATES = (
+    "fixture",
+    "captains",
+    "managers",
+    "formations",
+    "attendance",
+    "league_position",
+)
+
 
 def _require_zero_write_source_bundle(bundle: Mapping[str, Any]) -> None:
     if bundle.get("database_writes") != 0:
@@ -38,6 +49,15 @@ def _require_zero_write_source_bundle(bundle: Mapping[str, Any]) -> None:
         raise SourceDrivenPackageError("source-derived bundle reports canonical LUFC IDs")
     if bundle.get("promotion_performed") is not False:
         raise SourceDrivenPackageError("source-derived bundle reports promotion")
+
+
+def _require_zero_write_evidence_bundle(bundle: Mapping[str, Any]) -> None:
+    if bundle.get("database_writes") != 0:
+        raise SourceDrivenPackageError("evidence validation bundle reports database writes")
+    if bundle.get("canonical_lufc_ids_assigned") is not False:
+        raise SourceDrivenPackageError("evidence validation bundle reports canonical LUFC IDs")
+    if bundle.get("promotion_performed") is not False:
+        raise SourceDrivenPackageError("evidence validation bundle reports promotion")
 
 
 def _require_zero_write_canonical_diff(canonical_diff: Mapping[str, Any]) -> None:
@@ -107,3 +127,54 @@ def build_source_driven_ingestion_package(
         "database_writes": 0,
         "canonical_promotion_performed": False,
     }
+
+
+def build_fully_evidence_driven_ingestion_package(
+    *,
+    run_id: str,
+    importer_git_sha: str,
+    raw_payloads: Mapping[str, Any],
+    leeds_team_provider_id: int,
+    identity_package: Mapping[str, Any],
+    canonical_diff: Mapping[str, Any],
+    identity_mapping_validation: Mapping[str, Any],
+    secondary_evidence: Mapping[str, Any] | None = None,
+    backup: Mapping[str, Any] | None = None,
+    rollback_manifest: Mapping[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Build one package with every non-identity gate derived from captured evidence."""
+    evidence_bundle = build_evidence_validations(
+        raw_payloads=raw_payloads,
+        leeds_team_provider_id=leeds_team_provider_id,
+        secondary_evidence=secondary_evidence,
+    )
+    _require_zero_write_evidence_bundle(evidence_bundle)
+
+    evidence_validations = evidence_bundle.get("validations")
+    if not isinstance(evidence_validations, Mapping):
+        raise SourceDrivenPackageError("evidence validation bundle has no validations")
+
+    external_validations: dict[str, Any] = {
+        "identity_mapping": dict(identity_mapping_validation),
+    }
+    for gate_name in EVIDENCE_DERIVED_VALIDATION_GATES:
+        value = evidence_validations.get(gate_name)
+        if not isinstance(value, Mapping):
+            raise SourceDrivenPackageError(
+                f"evidence-derived validation is missing: {gate_name}"
+            )
+        external_validations[gate_name] = dict(value)
+
+    result = build_source_driven_ingestion_package(
+        run_id=run_id,
+        importer_git_sha=importer_git_sha,
+        raw_payloads=raw_payloads,
+        leeds_team_provider_id=leeds_team_provider_id,
+        identity_package=identity_package,
+        canonical_diff=canonical_diff,
+        external_validations=external_validations,
+        backup=backup,
+        rollback_manifest=rollback_manifest,
+    )
+    result["evidence_derived"] = evidence_bundle
+    return result
