@@ -7,15 +7,24 @@ proven to have entered the pitch.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
 from typing import Iterable
 
 
-@dataclass(frozen=True)
 class AppearancePopulation:
-    starters: frozenset[int]
-    used_substitutes: frozenset[int]
-    unused_bench: frozenset[int]
+    """Immutable-by-convention authoritative appearance population."""
+
+    __slots__ = ("starters", "used_substitutes", "unused_bench")
+
+    def __init__(
+        self,
+        *,
+        starters: frozenset[int],
+        used_substitutes: frozenset[int],
+        unused_bench: frozenset[int],
+    ) -> None:
+        self.starters = starters
+        self.used_substitutes = used_substitutes
+        self.unused_bench = unused_bench
 
     @property
     def appearances(self) -> frozenset[int]:
@@ -46,7 +55,11 @@ def validate_appearance_population(
     if appearances & unused:
         raise ValueError(f"IMPORT BLOCKED — {side}: unused bench contaminated appearance population")
 
-    return AppearancePopulation(starters=starters, used_substitutes=used, unused_bench=unused)
+    return AppearancePopulation(
+        starters=starters,
+        used_substitutes=used,
+        unused_bench=unused,
+    )
 
 
 def validate_both_sides(*, leeds: dict, opponent: dict) -> dict[str, AppearancePopulation]:
