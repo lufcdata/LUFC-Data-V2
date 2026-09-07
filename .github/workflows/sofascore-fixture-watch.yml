@@ -11,6 +11,7 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 jobs:
   fixture-watch:
@@ -40,14 +41,39 @@ jobs:
         with:
           python-version: '3.12'
 
+      # GitHub-hosted runners are ephemeral. Recover the most recent small
+      # provider-identity ledger before asking the scheduler what is uncaptured.
+      # The ledger contains only SofaScore event IDs and capture timestamps; it
+      # never assigns or substitutes LUFC canonical IDs.
+      - name: Restore durable scheduler identity
+        if: steps.uk-time.outputs.run == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p source_data/sofascore
+          artifact_id="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts?name=sofascore-scheduler-state&per_page=100" --jq '[.artifacts[] | select(.expired == false)] | sort_by(.created_at) | reverse | .[0].id // empty')"
+          if [ -z "$artifact_id" ]; then
+            echo "No prior scheduler-state artifact found."
+            exit 0
+          fi
+          curl --fail --location --silent --show-error \
+            --header "Authorization: Bearer ${GH_TOKEN}" \
+            --header "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}/zip" \
+            --output /tmp/sofascore-scheduler-state.zip
+          unzip -o /tmp/sofascore-scheduler-state.zip -d source_data/sofascore
+          test -f source_data/sofascore/scheduler_state.json
+          echo "Restored scheduler identity from artifact ${artifact_id}."
+
       - name: Discover next fixture and finished uncaptured match
         if: steps.uk-time.outputs.run == 'true'
         run: python scripts/sofascore_fixture_scheduler.py --no-collect
 
       # Safety preparation for the future collection phase. Each provider event
-      # becomes its own durable artifact, named by the SofaScore event ID. That
-      # provider ID is an external identity only; it never occupies a LUFC
-      # canonical match_id field.
+      # remains externally identified by SofaScore event ID; that provider ID can
+      # never occupy a LUFC canonical match_id field.
       - name: Discover raw capture directories
         if: steps.uk-time.outputs.run == 'true'
         id: captures
@@ -66,9 +92,21 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: sofascore-raw-${{ github.run_id }}
-          path: source_data/sofascore/**
+          path: source_data/sofascore/*/
           if-no-files-found: error
           retention-days: 14
+
+      # Once collection is enabled, the scheduler writes this file only after a
+      # successful read-only capture. Saving it separately makes the next fresh
+      # cloud runner idempotent without depending on its local filesystem.
+      - name: Preserve durable scheduler identity
+        if: steps.uk-time.outputs.run == 'true' && hashFiles('source_data/sofascore/scheduler_state.json') != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: sofascore-scheduler-state
+          path: source_data/sofascore/scheduler_state.json
+          if-no-files-found: error
+          retention-days: 90
 
       - name: Report durable capture identities
         if: steps.uk-time.outputs.run == 'true'
