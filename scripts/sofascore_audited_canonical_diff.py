@@ -13,6 +13,7 @@ from __future__ import annotations
 
 from typing import Any, Mapping
 
+from sofascore_ingestion_provenance_diff import build_ingestion_provenance_proposal
 from sofascore_opposition_captain_diff import build_opposition_captain_proposal
 from sofascore_opposition_goal_diff import build_opposition_goal_proposal
 from sofascore_opposition_manager_diff import build_opposition_manager_assignment_proposal
@@ -91,6 +92,11 @@ def build_audited_canonical_diff(
         source_bundle=source_bundle,
         evidence_bundle=evidence_bundle,
     )
+    provenance = build_ingestion_provenance_proposal(
+        canonical_match_id=match_id,
+        source_bundle=source_bundle,
+        evidence_bundle=evidence_bundle,
+    )
 
     operations = list(base.get("operations") or [])
     operations.extend(shirts["operations"])
@@ -99,10 +105,11 @@ def build_audited_canonical_diff(
     # missing destinations inspectable without pretending they have been deployed.
     operations.extend(opposition_goals["operations"])
     operations.extend(opposition_captain["operations"])
+    operations.extend(provenance["operations"])
 
-    # Remove exactly the gap now satisfied by the audited Gold manager adapter. The
-    # structured-opposition-goals and opposition-captain gaps deliberately remain because
-    # their destinations are designed/preserved but not deployed.
+    # Remove exactly the gap now satisfied by the audited Gold manager adapter. All
+    # designed-but-not-deployed destinations deliberately remain blocking, including
+    # structured opposition goals/captain and ingestion provenance/event identity.
     base_gaps = base.get("schema_gaps")
     if not isinstance(base_gaps, list):
         raise AuditedCanonicalDiffError("base canonical diff has no schema-gap population")
@@ -132,10 +139,30 @@ def build_audited_canonical_diff(
         raise AuditedCanonicalDiffError(
             f"expected exactly one opposition-captain schema gap; found {len(captain_gaps)}"
         )
+    attendance_provenance_gaps = [
+        gap for gap in base_gaps
+        if isinstance(gap, Mapping) and gap.get("field") == "attendance provenance"
+    ]
+    if len(attendance_provenance_gaps) != 1:
+        raise AuditedCanonicalDiffError(
+            f"expected exactly one attendance-provenance schema gap; found {len(attendance_provenance_gaps)}"
+        )
+    external_event_gaps = [
+        gap for gap in base_gaps
+        if isinstance(gap, Mapping) and gap.get("field") == "SofaScore external event identity"
+    ]
+    if len(external_event_gaps) != 1:
+        raise AuditedCanonicalDiffError(
+            f"expected exactly one SofaScore-event-identity schema gap; found {len(external_event_gaps)}"
+        )
     if opposition_goals.get("status") != "SCHEMA_GAP" or opposition_goals.get("destination_deployed") is not False:
         raise AuditedCanonicalDiffError("opposition-goal adapter must remain schema-blocked before deployment")
     if opposition_captain.get("status") != "SCHEMA_GAP" or opposition_captain.get("destination_deployed") is not False:
         raise AuditedCanonicalDiffError("opposition-captain adapter must remain schema-blocked before deployment")
+    if provenance.get("status") != "SCHEMA_GAP" or provenance.get("destination_deployed") is not False:
+        raise AuditedCanonicalDiffError("ingestion-provenance adapter must remain schema-blocked before deployment")
+    if provenance.get("canonical_match_id") != match_id:
+        raise AuditedCanonicalDiffError("ingestion provenance canonical match identity drifted")
 
     remaining_gaps = [gap for gap in base_gaps if gap not in manager_gaps]
 
@@ -174,6 +201,17 @@ def build_audited_canonical_diff(
             "provider_player_id": opposition_captain["provider_player_id"],
             "operation_count": opposition_captain["operation_count"],
             "blocker": opposition_captain["blocker"],
+        },
+        "ingestion_provenance_adapter": {
+            "status": provenance["status"],
+            "destination_deployed": provenance["destination_deployed"],
+            "provider_event_id": provenance["provider_event_id"],
+            "canonical_match_id": provenance["canonical_match_id"],
+            "attendance": provenance["attendance"],
+            "attendance_source": provenance["attendance_source"],
+            "attendance_authority": provenance["attendance_authority"],
+            "operation_count": provenance["operation_count"],
+            "blockers": provenance["blockers"],
         },
         "audited_composition": True,
         "database_writes": 0,
