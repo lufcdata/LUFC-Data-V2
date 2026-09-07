@@ -27,6 +27,7 @@ from sofascore_readonly_collector import (
 )
 
 STATE_PATH = Path("source_data/sofascore/scheduler_state.json")
+CAPTURE_ROOT = Path("source_data/sofascore")
 COLLECTOR = Path(__file__).with_name("sofascore_readonly_collector.py")
 FIRST_FT_CHECK_MINUTES = 115
 FT_RECHECK_MINUTES = 10
@@ -76,6 +77,28 @@ def _save_state(path: Path, state: dict[str, Any]) -> None:
     path.write_text(json.dumps(state, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 
+def _captured_event_ids(capture_root: Path) -> set[int]:
+    """Recover provider IDs from immutable raw manifests, not just scheduler state.
+
+    This makes local reruns fail closed even if scheduler_state.json is lost. Cloud
+    runners still need durable artifact/state restoration before collection is enabled.
+    """
+    found: set[int] = set()
+    if not capture_root.exists():
+        return found
+    for manifest_path in capture_root.glob("*/manifest.json"):
+        try:
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            continue
+        if not isinstance(manifest, dict) or manifest.get("provider") != "sofascore":
+            continue
+        event_id = manifest.get("sofascore_event_id")
+        if isinstance(event_id, int):
+            found.add(event_id)
+    return found
+
+
 def _next_ft_check(kickoff: datetime, now: datetime) -> datetime:
     first = kickoff + timedelta(minutes=FIRST_FT_CHECK_MINUTES)
     if now <= first:
@@ -89,6 +112,7 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--team-id", type=int, default=DEFAULT_LEEDS_SOFASCORE_TEAM_ID)
     parser.add_argument("--state", type=Path, default=STATE_PATH)
+    parser.add_argument("--capture-root", type=Path, default=CAPTURE_ROOT)
     parser.add_argument("--no-collect", action="store_true")
     args = parser.parse_args()
 
@@ -98,7 +122,9 @@ def main() -> int:
     next_event = future[0] if future else None
 
     state = _load_state(args.state)
-    captured = {int(x) for x in state.get("captured_event_ids", []) if str(x).isdigit()}
+    state_ids = {int(x) for x in state.get("captured_event_ids", []) if str(x).isdigit()}
+    manifest_ids = _captured_event_ids(args.capture_root)
+    captured = state_ids | manifest_ids
     recent = _events(args.team_id, "last")
     completed = [e for e in recent if _is_finished(e) and isinstance(e.get("id"), int)]
     completed.sort(key=lambda e: _event_datetime(e) or datetime.min.replace(tzinfo=timezone.utc), reverse=True)
@@ -111,6 +137,9 @@ def main() -> int:
             print("FIRST_FT_CHECK", (dt + timedelta(minutes=FIRST_FT_CHECK_MINUTES)).isoformat())
     else:
         print("NEXT_FIXTURE NONE")
+
+    if manifest_ids:
+        print("CAPTURE_MANIFEST_IDS", ",".join(str(x) for x in sorted(manifest_ids)))
 
     # A started fixture may have moved from the provider's next feed to its last feed
     # before it is finished. Surface the next useful polling time without treating time
