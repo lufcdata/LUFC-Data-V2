@@ -46,6 +46,7 @@ def build_audited_canonical_diff(
     identity_package: Mapping[str, Any],
     canonical_context: Mapping[str, Any],
     leeds_team_provider_id: int,
+    importer_git_sha: str,
 ) -> dict[str, Any]:
     """Return one composed source-derived diff; still never execute promotion."""
     base = build_source_canonical_diff(
@@ -96,6 +97,7 @@ def build_audited_canonical_diff(
         canonical_match_id=match_id,
         source_bundle=source_bundle,
         evidence_bundle=evidence_bundle,
+        importer_git_sha=importer_git_sha,
     )
 
     operations = list(base.get("operations") or [])
@@ -207,6 +209,7 @@ def build_audited_canonical_diff(
             "destination_deployed": provenance["destination_deployed"],
             "provider_event_id": provenance["provider_event_id"],
             "canonical_match_id": provenance["canonical_match_id"],
+            "importer_git_sha": provenance["importer_git_sha"],
             "attendance": provenance["attendance"],
             "attendance_source": provenance["attendance_source"],
             "attendance_authority": provenance["attendance_authority"],
