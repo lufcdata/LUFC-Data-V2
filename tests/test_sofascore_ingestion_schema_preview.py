@@ -8,6 +8,20 @@ def _sql() -> str:
     return SQL_PATH.read_text(encoding="utf-8")
 
 
+def _sql_without_comments() -> str:
+    """Return executable SQL text with line comments removed.
+
+    Privacy assertions must inspect statements, not prose such as
+    "do not grant client roles" in a safety comment.
+    """
+    lines = []
+    for line in _sql().splitlines():
+        statement = line.split("--", 1)[0]
+        if statement.strip():
+            lines.append(statement)
+    return "\n".join(lines)
+
+
 def test_preview_is_not_a_migration_and_rolls_back_if_executed():
     sql = _sql().lower()
     assert "design only / do not deploy" in sql
@@ -18,11 +32,12 @@ def test_preview_is_not_a_migration_and_rolls_back_if_executed():
 
 def test_ingestion_layer_is_private_from_client_roles():
     sql = _sql().lower()
+    executable_sql = _sql_without_comments().lower()
     assert "create schema if not exists ingestion" in sql
     assert "revoke all on schema ingestion from anon, authenticated" in sql
     assert "revoke all on all tables in schema ingestion from anon, authenticated" in sql
     assert "revoke all on all sequences in schema ingestion from anon, authenticated" in sql
-    assert "grant" not in sql
+    assert "grant" not in executable_sql
 
 
 def test_provider_identity_is_namespaced_and_never_a_canonical_primary_key():
