@@ -159,6 +159,24 @@ def test_brighton_diff_carries_exact_vuskovic_row_without_closing_schema_gap():
     assert result["opposition_goal_adapter"]["opposition_goal_count"] == 1
 
 
+def test_brighton_diff_carries_lewis_dunk_without_namespace_contamination():
+    result = _build()
+    rows = [row for row in result["operations"] if row["table"] == "opposition_captains"]
+
+    assert len(rows) == 1
+    row = rows[0]
+    assert row["action"] == "INSERT_AFTER_SCHEMA_DEPLOYMENT"
+    assert row["key"] == {"match_id": 4857}
+    assert row["values"] == {"match_id": 4857, "captain_name_raw": "Lewis Dunk"}
+    assert row["provider_evidence"]["provider_player_id"] == 115365
+    assert row["canonical_opposition_player_id"] is None
+    assert row["provider_id_written_to_canonical_id"] is False
+    assert result["opposition_captain_adapter"]["status"] == "SCHEMA_GAP"
+    assert result["opposition_captain_adapter"]["destination_deployed"] is False
+    assert result["opposition_captain_adapter"]["captain_name_raw"] == "Lewis Dunk"
+    assert result["opposition_captain_adapter"]["provider_player_id"] == 115365
+
+
 def test_opposition_manager_gap_is_closed_but_other_real_gaps_remain_blocking():
     result = _build()
     fields = {gap["field"] for gap in result["schema_gaps"]}
