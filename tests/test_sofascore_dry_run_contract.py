@@ -19,6 +19,201 @@ def _event(competition: str) -> dict:
     return {"tournament": {"name": competition}}
 
 
+def _brighton_event() -> dict:
+    return {
+        "tournament": {"name": "Premier League"},
+        "homeScore": {"current": 1, "display": 1, "normaltime": 1, "period1": 0, "period2": 1},
+        "awayScore": {"current": 1, "display": 1, "normaltime": 1, "period1": 1, "period2": 0},
+    }
+
+
+def _brighton_incidents() -> dict:
+    return {
+        "incidents": [
+            {
+                "incidentType": "substitution",
+                "isHome": True,
+                "time": 90,
+                "addedTime": 3,
+                "playerIn": {"id": 836675},
+                "playerOut": {"id": 788784},
+            },
+            {"incidentType": "card", "incidentClass": "yellow", "isHome": True, "time": 88},
+            {"incidentType": "card", "incidentClass": "yellow", "isHome": False, "time": 85},
+            {
+                "incidentType": "substitution",
+                "isHome": True,
+                "time": 78,
+                "playerIn": {"id": 988333},
+                "playerOut": {"id": 825844},
+            },
+            {
+                "incidentType": "substitution",
+                "isHome": True,
+                "time": 77,
+                "playerIn": {"id": 1119328},
+                "playerOut": {"id": 997152},
+            },
+            {
+                "incidentType": "substitution",
+                "isHome": False,
+                "time": 73,
+                "playerIn": {"id": 803185},
+                "playerOut": {"id": 372344},
+            },
+            {
+                "incidentType": "substitution",
+                "isHome": False,
+                "time": 73,
+                "playerIn": {"id": 355528},
+                "playerOut": {"id": 871886},
+            },
+            {
+                "incidentType": "goal",
+                "isHome": True,
+                "time": 71,
+                "homeScore": 1,
+                "awayScore": 1,
+                "player": {"id": 1405212, "name": "Luka Vuskovic"},
+            },
+            {"incidentType": "card", "incidentClass": "yellow", "isHome": False, "time": 64},
+            {
+                "incidentType": "substitution",
+                "isHome": False,
+                "time": 62,
+                "playerIn": {"id": 973431},
+                "playerOut": {"id": 865523},
+            },
+            {
+                "incidentType": "substitution",
+                "isHome": False,
+                "time": 61,
+                "playerIn": {"id": 886930},
+                "playerOut": {"id": 929132},
+            },
+            {"incidentType": "card", "incidentClass": "yellow", "isHome": True, "time": 49},
+            {"incidentType": "card", "incidentClass": "yellow", "isHome": True, "time": 38},
+            {
+                "incidentType": "goal",
+                "isHome": False,
+                "time": 15,
+                "homeScore": 0,
+                "awayScore": 1,
+                "player": {"id": 929132, "name": "Jayden Bogle"},
+            },
+            {"incidentType": "card", "incidentClass": "yellow", "isHome": False, "time": 6},
+        ]
+    }
+
+
+def _brighton_average_positions() -> dict:
+    return {
+        "substitutions": [
+            {
+                "incidentType": "substitution",
+                "isHome": False,
+                "time": 61,
+                "playerIn": {"id": 886930},
+                "playerOut": {"id": 929132},
+            },
+            {
+                "incidentType": "substitution",
+                "isHome": False,
+                "time": 62,
+                "playerIn": {"id": 973431},
+                "playerOut": {"id": 865523},
+            },
+            {
+                "incidentType": "substitution",
+                "isHome": False,
+                "time": 73,
+                "playerIn": {"id": 355528},
+                "playerOut": {"id": 871886},
+            },
+            {
+                "incidentType": "substitution",
+                "isHome": False,
+                "time": 73,
+                "playerIn": {"id": 803185},
+                "playerOut": {"id": 372344},
+            },
+            {
+                "incidentType": "substitution",
+                "isHome": True,
+                "time": 77,
+                "playerIn": {"id": 1119328},
+                "playerOut": {"id": 997152},
+            },
+            {
+                "incidentType": "substitution",
+                "isHome": True,
+                "time": 78,
+                "playerIn": {"id": 988333},
+                "playerOut": {"id": 825844},
+            },
+            {
+                "incidentType": "substitution",
+                "isHome": True,
+                "time": 90,
+                "addedTime": 3,
+                "playerIn": {"id": 836675},
+                "playerOut": {"id": 788784},
+            },
+        ]
+    }
+
+
+def _brighton_statistics() -> dict:
+    return {
+        "statistics": [
+            {
+                "period": "ALL",
+                "groups": [
+                    {
+                        "groupName": "Match overview",
+                        "statisticsItems": [
+                            {"name": "Yellow cards", "homeValue": 3, "awayValue": 3},
+                        ],
+                    },
+                    {
+                        "groupName": "Shots",
+                        "statisticsItems": [
+                            {"name": "Total shots", "homeValue": 20, "awayValue": 10},
+                        ],
+                    },
+                ],
+            }
+        ]
+    }
+
+
+def _brighton_shotmap() -> dict:
+    shots = []
+    for index in range(20):
+        shots.append(
+            {
+                "id": 10000 + index,
+                "incidentType": "shot",
+                "isHome": True,
+                "shotType": "goal" if index == 0 else "miss",
+                "time": 71 if index == 0 else 10 + index,
+                "player": {"id": 1405212 if index == 0 else 300000 + index},
+            }
+        )
+    for index in range(10):
+        shots.append(
+            {
+                "id": 20000 + index,
+                "incidentType": "shot",
+                "isHome": False,
+                "shotType": "goal" if index == 0 else "miss",
+                "time": 15 if index == 0 else 20 + index,
+                "player": {"id": 929132 if index == 0 else 400000 + index},
+            }
+        )
+    return {"shotmap": shots}
+
+
 def _lineups() -> dict:
     return {
         "home": {
@@ -263,3 +458,111 @@ def test_duplicate_provider_player_id_blocks_dry_run():
 
     with pytest.raises(contract.ContractError, match="duplicate SofaScore player IDs"):
         contract.summarize_lineup_side(lineups, "away")
+
+
+def test_brighton_goal_incidents_reconstruct_ht_and_final_score_from_newest_first_payload():
+    result = contract.reconcile_goals_with_scores(_brighton_event(), _brighton_incidents())
+
+    assert result["status"] == "PASS"
+    assert result["goal_count"] == 2
+    assert result["half_time_score"] == {"home": 0, "away": 1}
+    assert result["final_score"] == {"home": 1, "away": 1}
+    assert [goal["sofascore_player_id"] for goal in result["chronology"]] == [929132, 1405212]
+
+
+def test_goal_score_sequence_mismatch_blocks_promotion():
+    incidents = _brighton_incidents()
+    incidents["incidents"][7]["homeScore"] = 2
+
+    with pytest.raises(contract.ContractError, match="goal score sequence is invalid"):
+        contract.reconcile_goals_with_scores(_brighton_event(), incidents)
+
+
+def test_brighton_substitutions_reconcile_across_independent_endpoints():
+    result = contract.reconcile_substitutions(
+        _brighton_incidents(), _brighton_average_positions()
+    )
+
+    assert result == {
+        "status": "PASS",
+        "substitution_count": 7,
+        "home_count": 3,
+        "away_count": 4,
+    }
+
+
+def test_missing_substitution_in_second_endpoint_blocks_promotion():
+    average_positions = _brighton_average_positions()
+    average_positions["substitutions"].pop()
+
+    with pytest.raises(contract.ContractError, match="substitution populations disagree"):
+        contract.reconcile_substitutions(_brighton_incidents(), average_positions)
+
+
+def test_brighton_six_yellow_cards_reconcile_with_statistics_three_each():
+    result = contract.reconcile_cards_with_statistics(
+        _brighton_incidents(), _brighton_statistics()
+    )
+
+    assert result["status"] == "PASS"
+    assert result["yellow_cards"] == {"home": 3, "away": 3}
+
+
+def test_yellow_card_count_mismatch_blocks_promotion():
+    statistics = _brighton_statistics()
+    statistics["statistics"][0]["groups"][0]["statisticsItems"][0]["awayValue"] = 2
+
+    with pytest.raises(contract.ContractError, match="yellow-card populations disagree"):
+        contract.reconcile_cards_with_statistics(_brighton_incidents(), statistics)
+
+
+def test_brighton_shotmap_reconciles_20_10_and_30_total_shots():
+    result = contract.reconcile_shotmap_with_statistics(
+        _brighton_shotmap(), _brighton_statistics()
+    )
+
+    assert result["status"] == "PASS"
+    assert result["shot_count"] == 30
+    assert result["shots"] == {"home": 20, "away": 10}
+    assert result["goal_shot_count"] == 2
+
+
+def test_shot_count_mismatch_blocks_promotion():
+    shotmap = _brighton_shotmap()
+    shotmap["shotmap"].pop()
+
+    with pytest.raises(contract.ContractError, match="shot populations disagree"):
+        contract.reconcile_shotmap_with_statistics(shotmap, _brighton_statistics())
+
+
+def test_brighton_goal_incidents_link_one_to_one_to_goal_shots():
+    result = contract.reconcile_goal_shots(_brighton_incidents(), _brighton_shotmap())
+
+    assert result == {"status": "PASS", "linked_goal_count": 2}
+
+
+def test_unlinked_goal_shot_blocks_promotion():
+    shotmap = _brighton_shotmap()
+    shotmap["shotmap"][0]["player"]["id"] = 999999
+
+    with pytest.raises(contract.ContractError, match="goal incident/shotmap links disagree"):
+        contract.reconcile_goal_shots(_brighton_incidents(), shotmap)
+
+
+def test_brighton_population_gate_passes_without_database_writes_or_canonical_ids():
+    result = contract.reconcile_match_populations(
+        event=_brighton_event(),
+        incidents=_brighton_incidents(),
+        statistics=_brighton_statistics(),
+        shotmap=_brighton_shotmap(),
+        average_positions=_brighton_average_positions(),
+    )
+
+    assert result["status"] == "PASS"
+    assert result["goals"]["goal_count"] == 2
+    assert result["substitutions"]["substitution_count"] == 7
+    assert result["cards"]["yellow_cards"] == {"home": 3, "away": 3}
+    assert result["shots"]["shot_count"] == 30
+    assert result["goal_shots"]["linked_goal_count"] == 2
+    assert result["database_writes"] == 0
+    assert result["canonical_lufc_ids_assigned"] is False
