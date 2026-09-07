@@ -22,6 +22,7 @@ _load("sofascore_ingestion_run_package")
 _load("sofascore_dry_run_contract")
 _load("sofascore_staged_events")
 _load("sofascore_source_derived_dry_run")
+_load("sofascore_evidence_validations")
 orchestrator = _load("sofascore_source_driven_ingestion_package")
 
 
