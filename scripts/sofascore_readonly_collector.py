@@ -28,6 +28,7 @@ BASE_URL = "https://www.sofascore.com/api/v1"
 DEFAULT_LEEDS_SOFASCORE_TEAM_ID = 34
 DEFAULT_OUTPUT_ROOT = Path("source_data/sofascore")
 USER_AGENT = "LUFC-Data-V2-SofaScore-Research/1.0"
+LEAGUE_COMPETITION_NAMES = {"premier league"}
 
 
 class CollectorError(RuntimeError):
@@ -190,6 +191,29 @@ def _payload_urls(sofascore_event_id: int) -> dict[str, str]:
     }
 
 
+def _event_object(payload: dict[str, Any]) -> dict[str, Any]:
+    nested = payload.get("event")
+    return nested if isinstance(nested, dict) else payload
+
+
+def _standings_url_from_event(event: dict[str, Any]) -> str | None:
+    if _competition_name(event).strip().casefold() not in LEAGUE_COMPETITION_NAMES:
+        return None
+
+    tournament = event.get("tournament")
+    unique_tournament = tournament.get("uniqueTournament") if isinstance(tournament, dict) else None
+    season = event.get("season")
+    unique_tournament_id = unique_tournament.get("id") if isinstance(unique_tournament, dict) else None
+    season_id = season.get("id") if isinstance(season, dict) else None
+    if not isinstance(unique_tournament_id, int) or not isinstance(season_id, int):
+        raise CollectorError(
+            "League fixture cannot derive standings URL from unique tournament/season IDs"
+        )
+    return (
+        f"{BASE_URL}/unique-tournament/{unique_tournament_id}/season/{season_id}/standings/total"
+    )
+
+
 def _stable_json_bytes(payload: dict[str, Any]) -> bytes:
     return json.dumps(
         payload,
@@ -207,6 +231,34 @@ def _write_payload(path: Path, payload: dict[str, Any]) -> str:
         encoding="utf-8",
     )
     return digest
+
+
+def _record_payload(
+    *,
+    manifest: dict[str, Any],
+    capture_dir: Path,
+    name: str,
+    url: str,
+) -> dict[str, Any] | None:
+    try:
+        payload = _get_json(url)
+    except CollectorError as exc:
+        manifest["payloads"][name] = {
+            "url": url,
+            "status": "unavailable",
+            "error": str(exc),
+        }
+        return None
+
+    filename = f"{name}.json"
+    sha256 = _write_payload(capture_dir / filename, payload)
+    manifest["payloads"][name] = {
+        "url": url,
+        "status": "captured",
+        "file": filename,
+        "sha256": sha256,
+    }
+    return payload
 
 
 def collect_payload_family(
@@ -227,27 +279,38 @@ def collect_payload_family(
     }
 
     payload_urls = _payload_urls(sofascore_event_id)
+    captured_event: dict[str, Any] | None = None
     for index, (name, url) in enumerate(payload_urls.items()):
+        payload = _record_payload(
+            manifest=manifest,
+            capture_dir=capture_dir,
+            name=name,
+            url=url,
+        )
+        if name == "event" and payload is not None:
+            captured_event = _event_object(payload)
+
+        if delay_seconds > 0 and index < len(payload_urls) - 1:
+            time.sleep(delay_seconds)
+
+    if captured_event is not None:
         try:
-            payload = _get_json(url)
+            standings_url = _standings_url_from_event(captured_event)
         except CollectorError as exc:
-            manifest["payloads"][name] = {
-                "url": url,
+            manifest["payloads"]["standings"] = {
                 "status": "unavailable",
                 "error": str(exc),
             }
         else:
-            filename = f"{name}.json"
-            sha256 = _write_payload(capture_dir / filename, payload)
-            manifest["payloads"][name] = {
-                "url": url,
-                "status": "captured",
-                "file": filename,
-                "sha256": sha256,
-            }
-
-        if delay_seconds > 0 and index < len(payload_urls) - 1:
-            time.sleep(delay_seconds)
+            if standings_url is not None:
+                if delay_seconds > 0:
+                    time.sleep(delay_seconds)
+                _record_payload(
+                    manifest=manifest,
+                    capture_dir=capture_dir,
+                    name="standings",
+                    url=standings_url,
+                )
 
     manifest_path = capture_dir / "manifest.json"
     manifest_path.write_text(
