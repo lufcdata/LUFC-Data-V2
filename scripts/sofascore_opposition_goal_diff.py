@@ -53,8 +53,6 @@ def build_opposition_goal_proposal(
     if not goals:
         raise OppositionGoalDiffError("staged event population has no goal events")
 
-    # Staged events are already chronologically normalised. Reconstruct the score from
-    # that audited goal sequence so every opposition transition is independently proved.
     leeds_score = 0
     opponent_score = 0
     opposition_number = 0
@@ -97,7 +95,7 @@ def build_opposition_goal_proposal(
         is_own_goal = bool(event_json.get("incidentClass") == "ownGoal" or event_json.get("goalType") == "ownGoal")
         operation = {
             "table": "opposition_goals",
-            "action": "INSERT_AFTER_SCHEMA_DEPLOYMENT",
+            "action": "INSERT_AFTER_PARENT_KEY_ALLOCATION_AND_SCHEMA_DEPLOYMENT",
             "key": {
                 "match_id": match_id,
                 "opposition_goal_number_in_match": opposition_number,
@@ -116,6 +114,12 @@ def build_opposition_goal_proposal(
                 "score_leeds_after": leeds_score,
                 "score_opponent_after": opponent_score,
                 "game_state_before": _game_state_before(before_leeds, before_opponent),
+                "ingestion_run_id": "<FROM_PARENT_INSERT>",
+            },
+            "deferred_parent_key": {
+                "column": "ingestion_run_id",
+                "from_operation": "ingestion.runs",
+                "allocation": "FROM_PARENT_INSERT",
             },
             "provider_evidence": {
                 "provider": goal.get("provider"),
@@ -136,7 +140,7 @@ def build_opposition_goal_proposal(
         "opposition_goal_count": opposition_number,
         "operations": operations,
         "operation_count": len(operations),
-        "blocker": "structured opposition goals destination is designed but not deployed",
+        "blocker": "structured opposition goals destination and parent ingestion run are not deployed",
         "database_writes": 0,
         "sql_generated": False,
         "promotion_performed": False,
