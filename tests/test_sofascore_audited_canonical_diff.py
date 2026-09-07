@@ -75,7 +75,7 @@ def _source():
         "events": [
             {
                 "event_kind": "goal",
-                "side": "leeds",
+                "team_side": "LEEDS",
                 "minute_raw": "15'",
                 "minute_base": 15,
                 "stoppage_minute": None,
@@ -89,7 +89,7 @@ def _source():
             },
             {
                 "event_kind": "goal",
-                "side": "opponent",
+                "team_side": "OPPONENT",
                 "minute_raw": "71'",
                 "minute_base": 71,
                 "stoppage_minute": None,
