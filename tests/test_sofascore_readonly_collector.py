@@ -51,6 +51,12 @@ def test_wrong_opponent_is_not_ingestable():
     assert collector._matches_target(_event(opponent="Brentford"), 34, target) is False
 
 
+def test_payload_family_includes_shotmap_and_average_positions():
+    urls = collector._payload_urls(16363258)
+    assert urls["shotmap"] == "https://www.sofascore.com/api/v1/event/16363258/shotmap"
+    assert urls["average_positions"] == "https://www.sofascore.com/api/v1/event/16363258/average-positions"
+
+
 def test_provider_ids_remain_external_in_manifest_shape(tmp_path, monkeypatch):
     payloads = {
         "https://www.sofascore.com/api/v1/event/123456789": {"event": {"id": 123456789}},
@@ -67,3 +73,5 @@ def test_provider_ids_remain_external_in_manifest_shape(tmp_path, monkeypatch):
     assert manifest["sofascore_event_id"] == 123456789
     assert manifest["database_writes"] == 0
     assert manifest["canonical_lufc_ids_assigned"] is False
+    assert "shotmap" in manifest["payloads"]
+    assert "average_positions" in manifest["payloads"]
