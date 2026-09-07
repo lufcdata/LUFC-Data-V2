@@ -30,9 +30,19 @@ def _player(player_id: int):
     return {"id": player_id, "name": f"P{player_id}", "position": "M"}
 
 
-def _lineup(start: int, captain_id: int):
-    ids = [captain_id] + [start + i for i in range(30) if start + i != captain_id]
-    ids = ids[:20]
+def _lineup(start: int, captain_id: int, bench_ids: tuple[int, ...] = ()):
+    starters = [captain_id]
+    candidate = start
+    while len(starters) < 11:
+        if candidate != captain_id:
+            starters.append(candidate)
+        candidate += 1
+    bench = list(bench_ids)
+    while len(bench) < 9:
+        if candidate not in starters and candidate not in bench:
+            bench.append(candidate)
+        candidate += 1
+    ids = starters + bench[:9]
     return [
         {
             "player": _player(player_id),
@@ -86,8 +96,8 @@ def _raw_brighton():
         },
         "lineups": {
             "confirmed": True,
-            "home": {"formation": "4-2-3-1", "players": _lineup(4000000, 115365)},
-            "away": {"formation": "3-5-2", "players": _lineup(5000000, 847097)},
+            "home": {"formation": "4-2-3-1", "players": _lineup(4000000, 115365, (1444898, 1200006, 847094))},
+            "away": {"formation": "3-5-2", "players": _lineup(5000000, 847097, (1106242, 1056093, 1111117, 996672))},
         },
         "incidents": {"incidents": incidents},
         "statistics": {"statistics": [{"period": "ALL", "groups": [{"statisticsItems": [_stat("Total shots", 20, 10), _stat("Yellow cards", 3, 3)]}]}]},
@@ -123,6 +133,13 @@ def test_source_derived_populations_override_manual_validation_claims():
     package = result["package"]
     assert package["validations"]["shots"]["shots"] == {"home": 20, "away": 10}
     assert package["validations"]["substitutions"]["substitution_count"] == 7
+    assert package["validations"]["appearance_population"] == {
+        "status": "PASS",
+        "home_appearance_count": 14,
+        "away_appearance_count": 15,
+        "home_unused_bench_count": 6,
+        "away_unused_bench_count": 5,
+    }
     assert package["validations"]["staged_events"]["event_count"] == 45
     assert package["promotion_gate"]["status"] == "BLOCKED"
     assert "validation not passed: canonical_diff (BLOCKED)" in package["blockers"]
@@ -150,5 +167,6 @@ def test_ready_gate_still_does_not_perform_a_write():
     )
 
     assert result["status"] == "READY_FOR_PROMOTION"
+    assert result["package"]["promotion_gate"]["passed_validation_count"] == 16
     assert result["package"]["database_writes"] == 0
     assert result["package"]["canonical_promotion_performed"] is False
