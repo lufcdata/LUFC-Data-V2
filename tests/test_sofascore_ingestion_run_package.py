@@ -36,6 +36,7 @@ def _validations():
         for name in (
             "fixture",
             "lineups",
+            "appearance_population",
             "captains",
             "managers",
             "goals",
