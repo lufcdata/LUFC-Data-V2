@@ -27,6 +27,7 @@ _load("sofascore_ingestion_run_package")
 _load("sofascore_staged_events")
 _load("sofascore_source_derived_dry_run")
 _load("sofascore_evidence_validations")
+_load("sofascore_canonical_match_enrichment")
 _load("sofascore_source_driven_ingestion_package")
 runner = _load("sofascore_capture_to_package")
 
@@ -79,6 +80,91 @@ def test_capture_runner_passes_only_verified_raw_payloads_to_orchestrator(tmp_pa
     assert result["capture_verification"]["manifest_sha256"] == "manifest-hash"
     assert result["capture_verification"]["verified_payload_sha256"] == {"event": "event-hash"}
     assert result["capture_verification"]["unavailable_payloads"]["graph"]["status"] == "unavailable"
+    assert result["canonical_match_enrichment"] is None
+    assert result["database_writes"] == 0
+    assert result["canonical_promotion_performed"] is False
+
+
+def test_capture_runner_enriches_canonical_diff_before_orchestration(tmp_path, monkeypatch):
+    verified_raw = {"event": {"id": 16363258}}
+    capture_result = {
+        "status": "PASS",
+        "sofascore_event_id": 16363258,
+        "raw_payloads": verified_raw,
+        "manifest_sha256": "manifest-hash",
+        "verified_payload_sha256": {"event": "event-hash"},
+        "unavailable_payloads": {},
+    }
+    captured = {}
+    monkeypatch.setattr(runner, "load_verified_capture", lambda capture_dir: capture_result)
+    monkeypatch.setattr(
+        runner,
+        "build_source_derived_dry_run",
+        lambda **kwargs: {
+            "status": "PASS",
+            "sofascore_event_id": 16363258,
+            "database_writes": 0,
+            "promotion_performed": False,
+        },
+    )
+    monkeypatch.setattr(
+        runner,
+        "build_evidence_validations",
+        lambda **kwargs: {
+            "status": "PASS",
+            "database_writes": 0,
+            "promotion_performed": False,
+        },
+    )
+    enrichment = {
+        "status": "PASS",
+        "sofascore_event_id": 16363258,
+        "values": {"season_id": 101, "league_position_after_match": 9},
+        "database_writes": 0,
+        "canonical_promotion_performed": False,
+    }
+    monkeypatch.setattr(
+        runner,
+        "build_canonical_match_enrichment",
+        lambda **kwargs: enrichment,
+    )
+
+    def fake_merge(**kwargs):
+        diff = dict(kwargs["canonical_diff"])
+        diff["enriched"] = True
+        return diff
+
+    monkeypatch.setattr(runner, "merge_match_enrichment_into_canonical_diff", fake_merge)
+
+    def fake_build(**kwargs):
+        captured.update(kwargs)
+        return {
+            "status": "BLOCKED",
+            "package": {"database_writes": 0, "canonical_promotion_performed": False},
+            "database_writes": 0,
+            "canonical_promotion_performed": False,
+        }
+
+    monkeypatch.setattr(runner, "build_fully_evidence_driven_ingestion_package", fake_build)
+
+    result = runner.build_package_from_capture(
+        capture_dir=tmp_path,
+        run_id="brighton-context-run",
+        importer_git_sha="abc",
+        leeds_team_provider_id=34,
+        identity_package={"match": {"provider_id": 16363258, "canonical_id": 4857}},
+        identity_mapping_validation={"status": "RESOLVED"},
+        canonical_diff={"status": "BLOCKED", "database_writes": 0},
+        canonical_context={
+            "season_id": 101,
+            "competition_id": 12,
+            "competition_name_id": 12,
+            "manager_spell_id": 57,
+        },
+    )
+
+    assert captured["canonical_diff"]["enriched"] is True
+    assert result["canonical_match_enrichment"] is enrichment
     assert result["database_writes"] == 0
     assert result["canonical_promotion_performed"] is False
 
@@ -123,22 +209,27 @@ def test_cli_writes_zero_write_package_json(tmp_path, monkeypatch, capsys):
     identity_path = tmp_path / "identity.json"
     identity_validation_path = tmp_path / "identity-validation.json"
     diff_path = tmp_path / "diff.json"
+    context_path = tmp_path / "canonical-context.json"
     output_path = tmp_path / "out" / "package.json"
     identity_path.write_text(json.dumps({"match": {"provider_id": 16363258, "canonical_id": 4857}}), encoding="utf-8")
     identity_validation_path.write_text(json.dumps({"status": "RESOLVED"}), encoding="utf-8")
     diff_path.write_text(json.dumps({"status": "BLOCKED", "database_writes": 0}), encoding="utf-8")
+    context_path.write_text(json.dumps({"season_id": 101, "competition_id": 12, "competition_name_id": 12, "manager_spell_id": 57}), encoding="utf-8")
 
-    monkeypatch.setattr(
-        runner,
-        "build_package_from_capture",
-        lambda **kwargs: {
+    captured = {}
+
+    def fake_build_package(**kwargs):
+        captured.update(kwargs)
+        return {
             "status": "BLOCKED",
             "capture_verification": {"status": "PASS"},
+            "canonical_match_enrichment": {"status": "PASS"},
             "ingestion": {"status": "BLOCKED"},
             "database_writes": 0,
             "canonical_promotion_performed": False,
-        },
-    )
+        }
+
+    monkeypatch.setattr(runner, "build_package_from_capture", fake_build_package)
 
     code = runner.main([
         "--capture-dir", str(tmp_path / "capture"),
@@ -147,6 +238,7 @@ def test_cli_writes_zero_write_package_json(tmp_path, monkeypatch, capsys):
         "--identity-package", str(identity_path),
         "--identity-validation", str(identity_validation_path),
         "--canonical-diff", str(diff_path),
+        "--canonical-context", str(context_path),
         "--output", str(output_path),
     ])
 
@@ -154,4 +246,5 @@ def test_cli_writes_zero_write_package_json(tmp_path, monkeypatch, capsys):
     written = json.loads(output_path.read_text(encoding="utf-8"))
     assert written["database_writes"] == 0
     assert written["canonical_promotion_performed"] is False
+    assert captured["canonical_context"]["season_id"] == 101
     assert "ZERO-WRITE INGESTION PACKAGE: BLOCKED" in capsys.readouterr().out
