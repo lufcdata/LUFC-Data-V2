@@ -1,7 +1,26 @@
-from scripts.sofascore_ingestion_run_package import (
-    build_ingestion_run_package,
-    require_zero_write_package,
-)
+from __future__ import annotations
+
+import importlib.util
+import sys
+from pathlib import Path
+
+SCRIPTS_DIR = Path(__file__).resolve().parents[1] / "scripts"
+
+
+def _load(name: str):
+    path = SCRIPTS_DIR / f"{name}.py"
+    spec = importlib.util.spec_from_file_location(name, path)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+# The run-package module imports the promotion gate by its script-level module name,
+# so load that dependency first just as the existing script tests do.
+_load("sofascore_promotion_gate")
+run_package = _load("sofascore_ingestion_run_package")
 
 
 def _identity_package():
@@ -35,7 +54,7 @@ def _validations():
 
 
 def test_brighton_run_package_is_fail_closed_while_schema_gaps_and_backup_remain():
-    package = build_ingestion_run_package(
+    package = run_package.build_ingestion_run_package(
         run_id="brighton-2026-09-05-dry-run",
         sofascore_event_id=16363258,
         importer_git_sha="55296514fa48667279d12d76dda2e74b5ad06e29",
@@ -74,7 +93,7 @@ def test_brighton_run_package_is_fail_closed_while_schema_gaps_and_backup_remain
     assert "rollback manifest required" in package["blockers"]
     assert package["database_writes"] == 0
     assert package["canonical_promotion_performed"] is False
-    require_zero_write_package(package)
+    run_package.require_zero_write_package(package)
 
 
 def test_raw_payload_fingerprint_changes_when_evidence_changes():
@@ -89,8 +108,8 @@ def test_raw_payload_fingerprint_changes_when_evidence_changes():
         backup={"status": "VERIFIED"},
         rollback_manifest={"status": "READY"},
     )
-    first = build_ingestion_run_package(raw_payloads={"event": {"id": 16363258, "score": "1-1"}}, **common)
-    second = build_ingestion_run_package(raw_payloads={"event": {"id": 16363258, "score": "2-1"}}, **common)
+    first = run_package.build_ingestion_run_package(raw_payloads={"event": {"id": 16363258, "score": "1-1"}}, **common)
+    second = run_package.build_ingestion_run_package(raw_payloads={"event": {"id": 16363258, "score": "2-1"}}, **common)
 
     assert first["raw_manifest_sha256"] != second["raw_manifest_sha256"]
     assert first["package_sha256"] != second["package_sha256"]
