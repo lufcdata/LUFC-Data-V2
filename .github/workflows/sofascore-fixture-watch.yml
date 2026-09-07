@@ -63,9 +63,36 @@ jobs:
           test -f source_data/sofascore/scheduler_state.json
           echo "Restored scheduler identity from artifact ${artifact_id}."
 
-      - name: Discover next fixture and finished uncaptured match
+      # Collection is intentionally raw-only. The scheduler invokes the existing
+      # read-only collector only after SofaScore itself reports a finished Leeds
+      # fixture. The collector has no database credentials and performs zero
+      # canonical writes.
+      - name: Discover fixture and capture finished uncaptured match
         if: steps.uk-time.outputs.run == 'true'
-        run: python scripts/sofascore_fixture_scheduler.py --no-collect
+        run: python scripts/sofascore_fixture_scheduler.py
+
+      - name: Verify captured manifests are zero-write
+        if: steps.uk-time.outputs.run == 'true'
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          manifests = list(Path('source_data/sofascore').glob('*/manifest.json'))
+          for path in manifests:
+              data = json.loads(path.read_text(encoding='utf-8'))
+              if data.get('provider') != 'sofascore':
+                  raise SystemExit(f'BLOCKED unexpected provider in {path}')
+              if data.get('database_writes') != 0:
+                  raise SystemExit(f'BLOCKED database write claim in {path}')
+              if data.get('canonical_lufc_ids_assigned') is not False:
+                  raise SystemExit(f'BLOCKED canonical ID assignment claim in {path}')
+              event_id = data.get('sofascore_event_id')
+              if not isinstance(event_id, int):
+                  raise SystemExit(f'BLOCKED missing provider event ID in {path}')
+          print(f'ZERO_WRITE_CAPTURE_MANIFESTS {len(manifests)}')
+          PY
 
       - name: Discover raw capture directories
         if: steps.uk-time.outputs.run == 'true'
