@@ -2,11 +2,10 @@ name: SofaScore fixture watch
 
 on:
   schedule:
-    # GitHub cron is UTC. Check once each day at 18:00 UK time equivalent.
-    # Two seasonal UTC schedules are intentionally avoided here; 18:00 UTC means
-    # 18:00 GMT in winter and 19:00 BST in summer, which is acceptable for a
-    # once-daily fixture-change check. Match-day triggering will use the stored
-    # live fixture time rather than frequent all-season polling.
+    # GitHub cron is UTC. Trigger at both possible UTC equivalents of 18:00 UK,
+    # then gate below using Europe/London so SofaScore is read exactly once at
+    # 18:00 local time across both GMT and BST.
+    - cron: '0 17 * * *'
     - cron: '0 18 * * *'
   workflow_dispatch:
 
@@ -18,15 +17,29 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
+      - name: Gate scheduled run to 18:00 UK
+        id: uk-time
+        env:
+          TZ: Europe/London
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] || [ "$(date +%H)" = "18" ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Checkout scheduler branch
+        if: steps.uk-time.outputs.run == 'true'
         uses: actions/checkout@v4
         with:
           ref: ui-bolt-opponents-v1
 
       - name: Set up Python
+        if: steps.uk-time.outputs.run == 'true'
         uses: actions/setup-python@v5
         with:
           python-version: '3.12'
 
       - name: Discover next fixture and finished uncaptured match
+        if: steps.uk-time.outputs.run == 'true'
         run: python scripts/sofascore_fixture_scheduler.py --no-collect
