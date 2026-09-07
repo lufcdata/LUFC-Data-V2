@@ -14,6 +14,7 @@ from typing import Any, Mapping
 REQUIRED_VALIDATION_GATES = (
     "fixture",
     "lineups",
+    "appearance_population",
     "captains",
     "managers",
     "goals",
