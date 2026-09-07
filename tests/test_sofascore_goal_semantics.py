@@ -94,5 +94,5 @@ def test_invalid_score_transition_fails_closed():
             chronology=[{"time": 15, "is_home": False, "home_score": 0, "away_score": 2}],
             leeds_is_home=False,
             final_home_score=0,
-            final_away_score=2,
+            final_away_score=1,
         )
