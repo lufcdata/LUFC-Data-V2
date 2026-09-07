@@ -70,6 +70,33 @@ def test_brighton_provenance_and_external_event_blockers_have_real_destinations(
     assert "ingestion_one_promoted_provider_event" in sql
 
 
+def test_provenance_adapter_parent_child_contract_is_supported_by_preview():
+    sql = _sql().lower()
+    assert "ingestion_run_id uuid primary key" in sql
+    assert "importer_git_sha text not null" in sql
+    assert "database_writes integer not null default 0" in sql
+    assert "canonical_match_id integer references public.matches(match_id)" in sql
+    assert (
+        "ingestion_run_id uuid not null references ingestion.runs(ingestion_run_id) on delete restrict"
+        in sql
+    )
+    assert "value_json jsonb not null" in sql
+    assert "authority in ('primary','secondary','derived')" in sql
+
+
+def test_provider_event_uniqueness_is_promotion_scoped_not_capture_destructive():
+    sql = _sql().lower()
+    assert "unique (provider, provider_event_id, importer_git_sha, started_at)" in sql
+    assert "on ingestion.runs (provider, provider_event_id)" in sql
+    assert "where status = 'promoted'" in sql
+    # Retries and blocked captures remain auditable; only a promoted run is unique per provider event.
+    assert "unique (provider, provider_event_id)" not in sql.split(
+        "create table if not exists ingestion.runs", 1
+    )[1].split(
+        "create unique index if not exists ingestion_one_promoted_provider_event", 1
+    )[0]
+
+
 def test_golden_backup_can_never_enter_routine_ingestion_retention_class():
     sql = _sql()
     assert "retention_class = 'ROLLING_14_DAY'" in sql
