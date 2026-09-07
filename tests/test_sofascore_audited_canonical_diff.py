@@ -147,11 +147,16 @@ def test_audited_diff_adds_twenty_shirt_rows_and_gold_manager_relationship():
     assert assignment["key"] == {"match_id": 4857}
     assert assignment["values"]["authority_type"] == "individual"
     assert assignment["values"]["canonical_source_name"] == "Fabian Hürzeler"
-    assert assignment["values"]["managerial_assignment_id"] is None
+    assert "managerial_assignment_id" not in assignment["values"]
+    assert assignment["deferred_primary_key"] == {
+        "column": "managerial_assignment_id",
+        "allocation": "TRANSACTIONAL_AT_PROMOTION",
+        "reason": "column is NOT NULL with no database default; never guess from match_id or max(id)+1 in the dry-run diff",
+    }
 
     link = next(op for op in result["operations"] if op["table"] == "managerial_assignment_people")
     assert link["action"] == "INSERT_AFTER_PARENT_KEY_ALLOCATION"
-    assert link["key"]["managerial_assignment_id"] is None
+    assert link["key"]["managerial_assignment_id"] == "<FROM_PARENT_INSERT>"
     assert link["key"]["managerial_person_id"] == 822
 
 
@@ -177,7 +182,7 @@ def test_blocked_opposition_goal_row_is_carried_without_closing_schema_gap():
     assert row["values"]["sequence_in_match"] == 2
     assert row["values"]["scorer_name_raw"] == "Luka Vušković"
     assert row["values"]["assist_name_raw"] == "Maxim De Cuyper"
-    assert row["values"]["minute_base"] == 71
+    assert row["values"]["minute_normalised"] == 71
     assert row["values"]["score_leeds_after"] == 1
     assert row["values"]["score_opponent_after"] == 1
     assert row["values"]["game_state_before"] == "Leading +1"
