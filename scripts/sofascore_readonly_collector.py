@@ -185,6 +185,8 @@ def _payload_urls(sofascore_event_id: int) -> dict[str, str]:
         "managers": f"{base}/managers",
         "statistics": f"{base}/statistics",
         "graph": f"{base}/graph",
+        "average_positions": f"{base}/average-positions",
+        "shotmap": f"{base}/shotmap",
     }
 
 
@@ -224,7 +226,8 @@ def collect_payload_family(
         "payloads": {},
     }
 
-    for index, (name, url) in enumerate(_payload_urls(sofascore_event_id).items()):
+    payload_urls = _payload_urls(sofascore_event_id)
+    for index, (name, url) in enumerate(payload_urls.items()):
         try:
             payload = _get_json(url)
         except CollectorError as exc:
@@ -243,7 +246,7 @@ def collect_payload_family(
                 "sha256": sha256,
             }
 
-        if delay_seconds > 0 and index < len(_payload_urls(sofascore_event_id)) - 1:
+        if delay_seconds > 0 and index < len(payload_urls) - 1:
             time.sleep(delay_seconds)
 
     manifest_path = capture_dir / "manifest.json"
