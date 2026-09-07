@@ -3,8 +3,9 @@
 
 The package is the hand-off boundary between collection/validation and any future
 promotion machinery. It contains source payload fingerprints, identity resolution,
-reconciliation results, proposed canonical changes, schema gaps and the master gate
-result. This module has no network or database access and performs no writes.
+reconciliation results, staged events, proposed canonical changes, schema gaps and
+the master gate result. This module has no network or database access and performs
+no writes.
 """
 
 from __future__ import annotations
@@ -41,6 +42,18 @@ def _require_int(value: Any, label: str) -> int:
     return value
 
 
+def _validate_staged_events(staged_events: Mapping[str, Any]) -> None:
+    events = staged_events.get("events")
+    if not isinstance(events, list):
+        raise IngestionRunPackageError("staged event population must contain an events list")
+    if staged_events.get("event_count") != len(events):
+        raise IngestionRunPackageError("staged event_count does not match staged events list")
+    if staged_events.get("database_writes") != 0:
+        raise IngestionRunPackageError("staged event population reports database writes")
+    if staged_events.get("promotion_performed") is not False:
+        raise IngestionRunPackageError("staged event population reports promotion")
+
+
 def build_ingestion_run_package(
     *,
     run_id: str,
@@ -49,6 +62,7 @@ def build_ingestion_run_package(
     raw_payloads: Mapping[str, Any],
     identity_package: Mapping[str, Any],
     reconciliation: Mapping[str, Any],
+    staged_events: Mapping[str, Any],
     canonical_diff: Mapping[str, Any],
     validations: Mapping[str, Any],
     backup: Mapping[str, Any] | None = None,
@@ -70,6 +84,8 @@ def build_ingestion_run_package(
     if diff_event_id != event_id:
         raise IngestionRunPackageError("canonical diff SofaScore event ID does not match run event")
 
+    _validate_staged_events(staged_events)
+
     raw_manifest = {
         name: {
             "sha256": _sha256(payload),
@@ -78,6 +94,7 @@ def build_ingestion_run_package(
         for name, payload in sorted(raw_payloads.items())
     }
     raw_manifest_sha256 = _sha256(raw_manifest)
+    staged_events_sha256 = _sha256(staged_events)
 
     gate_validations = dict(validations)
     gate_validations["raw_provenance"] = {
@@ -108,6 +125,8 @@ def build_ingestion_run_package(
         "raw_manifest_sha256": raw_manifest_sha256,
         "identity_package": identity_package,
         "reconciliation": reconciliation,
+        "staged_events": staged_events,
+        "staged_events_sha256": staged_events_sha256,
         "canonical_diff": canonical_diff,
         "validations": gate_validations,
         "promotion_gate": gate,
