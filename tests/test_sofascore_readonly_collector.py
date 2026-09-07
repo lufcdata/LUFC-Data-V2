@@ -16,12 +16,13 @@ SPEC.loader.exec_module(collector)
 
 
 def _event(*, status_type: str = "finished", opponent: str = "Brighton & Hove Albion"):
+    description = "Finished" if status_type == "finished" else "Not started"
     return {
         "id": 123456789,
         "startTimestamp": int(
             datetime(2026, 9, 5, 14, 0, tzinfo=timezone.utc).timestamp()
         ),
-        "status": {"type": status_type, "description": "Finished"},
+        "status": {"type": status_type, "description": description},
         "homeTeam": {"id": 30, "name": opponent},
         "awayTeam": {"id": 34, "name": "Leeds United"},
         "tournament": {"name": "Premier League"},
