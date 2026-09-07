@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import importlib.util
+import json
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -9,6 +11,7 @@ MODULE_PATH = Path(__file__).resolve().parents[1] / "scripts" / "sofascore_reado
 SPEC = importlib.util.spec_from_file_location("sofascore_readonly_collector", MODULE_PATH)
 assert SPEC is not None and SPEC.loader is not None
 collector = importlib.util.module_from_spec(SPEC)
+sys.modules[SPEC.name] = collector
 SPEC.loader.exec_module(collector)
 
 
@@ -57,7 +60,7 @@ def test_provider_ids_remain_external_in_manifest_shape(tmp_path, monkeypatch):
 
     monkeypatch.setattr(collector, "_get_json", fake_get_json)
     manifest_path = collector.collect_payload_family(123456789, tmp_path, 0)
-    manifest = __import__("json").loads(manifest_path.read_text(encoding="utf-8"))
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
 
     assert manifest["provider"] == "sofascore"
     assert manifest["sofascore_event_id"] == 123456789
