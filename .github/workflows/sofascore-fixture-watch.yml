@@ -41,10 +41,6 @@ jobs:
         with:
           python-version: '3.12'
 
-      # GitHub-hosted runners are ephemeral. Recover the most recent small
-      # provider-identity ledger before asking the scheduler what is uncaptured.
-      # The ledger contains only SofaScore event IDs and capture timestamps; it
-      # never assigns or substitutes LUFC canonical IDs.
       - name: Restore durable scheduler identity
         if: steps.uk-time.outputs.run == 'true'
         env:
@@ -71,9 +67,6 @@ jobs:
         if: steps.uk-time.outputs.run == 'true'
         run: python scripts/sofascore_fixture_scheduler.py --no-collect
 
-      # Safety preparation for the future collection phase. Each provider event
-      # remains externally identified by SofaScore event ID; that provider ID can
-      # never occupy a LUFC canonical match_id field.
       - name: Discover raw capture directories
         if: steps.uk-time.outputs.run == 'true'
         id: captures
@@ -96,11 +89,19 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
-      # Once collection is enabled, the scheduler writes this file only after a
-      # successful read-only capture. Saving it separately makes the next fresh
-      # cloud runner idempotent without depending on its local filesystem.
+      - name: Check scheduler state file
+        if: steps.uk-time.outputs.run == 'true'
+        id: state-file
+        shell: bash
+        run: |
+          if [ -f source_data/sofascore/scheduler_state.json ]; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Preserve durable scheduler identity
-        if: steps.uk-time.outputs.run == 'true' && hashFiles('source_data/sofascore/scheduler_state.json') != ''
+        if: steps.uk-time.outputs.run == 'true' && steps.state-file.outputs.exists == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: sofascore-scheduler-state
