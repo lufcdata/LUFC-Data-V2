@@ -53,7 +53,7 @@ def test_brighton_vuskovic_goal_is_exactly_proposed_but_remains_schema_blocked()
 
     op = result["operations"][0]
     assert op["table"] == "opposition_goals"
-    assert op["action"] == "INSERT_AFTER_SCHEMA_DEPLOYMENT"
+    assert op["action"] == "INSERT_AFTER_PARENT_KEY_ALLOCATION_AND_SCHEMA_DEPLOYMENT"
     assert op["key"] == {"match_id": 4857, "opposition_goal_number_in_match": 1}
     assert op["values"]["sequence_in_match"] == 2
     assert op["values"]["scorer_name_raw"] == "Luka Vušković"
@@ -62,6 +62,12 @@ def test_brighton_vuskovic_goal_is_exactly_proposed_but_remains_schema_blocked()
     assert op["values"]["score_leeds_after"] == 1
     assert op["values"]["score_opponent_after"] == 1
     assert op["values"]["game_state_before"] == "Leading +1"
+    assert op["values"]["ingestion_run_id"] == "<FROM_PARENT_INSERT>"
+    assert op["deferred_parent_key"] == {
+        "column": "ingestion_run_id",
+        "from_operation": "ingestion.runs",
+        "allocation": "FROM_PARENT_INSERT",
+    }
     assert op["provider_evidence"]["provider_player_id"] == 1405212
     assert "opposition_goal_id" not in op["values"]
     assert "leeds_player_id" not in op["values"]
