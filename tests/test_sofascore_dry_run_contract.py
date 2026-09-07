@@ -54,6 +54,50 @@ def _lineups() -> dict:
     }
 
 
+def _complete_side(
+    *,
+    first_id: int,
+    captain_name: str,
+    formation: str,
+) -> dict:
+    players = []
+    for index in range(11):
+        provider_id = first_id + index
+        player = {
+            "id": provider_id,
+            "name": captain_name if index == 0 else f"Starter {provider_id}",
+            "position": "M" if index == 0 else "D",
+        }
+        players.append(
+            {
+                "player": player,
+                "captain": index == 0,
+                "substitute": False,
+                "shirtNumber": index + 1,
+                "position": "D" if index == 0 else "M",
+            }
+        )
+    for index in range(5):
+        provider_id = first_id + 100 + index
+        players.append(
+            {
+                "player": {"id": provider_id, "name": f"Bench {provider_id}", "position": "F"},
+                "substitute": True,
+                "shirtNumber": index + 20,
+                "position": "F",
+            }
+        )
+    return {"formation": formation, "players": players}
+
+
+def _complete_lineups() -> dict:
+    return {
+        "confirmed": True,
+        "home": _complete_side(first_id=1000, captain_name="Lewis Dunk", formation="4-2-3-1"),
+        "away": _complete_side(first_id=2000, captain_name="Ethan Ampadu", formation="4-3-3"),
+    }
+
+
 def test_premier_league_requires_post_match_league_position_lookup():
     result = contract.league_position_requirement(_event("Premier League"))
 
@@ -99,3 +143,48 @@ def test_captain_marked_as_substitute_blocks_promotion():
 
     with pytest.raises(contract.ContractError, match="marked as a substitute"):
         contract.extract_captain(lineups, "away")
+
+
+def test_confirmed_lineups_summarize_both_sides_without_assigning_lufc_ids():
+    result = contract.summarize_lineups(_complete_lineups())
+
+    assert result["confirmed"] is True
+    assert result["database_writes"] == 0
+    assert result["canonical_lufc_ids_assigned"] is False
+    assert result["home"]["starter_count"] == 11
+    assert result["home"]["bench_count"] == 5
+    assert result["home"]["captain"]["name"] == "Lewis Dunk"
+    assert result["away"]["starter_count"] == 11
+    assert result["away"]["captain"]["name"] == "Ethan Ampadu"
+
+
+def test_match_position_and_profile_position_remain_separate():
+    result = contract.summarize_lineup_side(_complete_lineups(), "away")
+    captain = result["captain"]
+
+    assert captain["match_position"] == "D"
+    assert captain["profile_position"] == "M"
+
+
+def test_unconfirmed_lineups_block_dry_run():
+    lineups = _complete_lineups()
+    lineups["confirmed"] = False
+
+    with pytest.raises(contract.ContractError, match="not confirmed"):
+        contract.summarize_lineups(lineups)
+
+
+def test_lineup_with_fewer_than_11_starters_blocks_dry_run():
+    lineups = _complete_lineups()
+    lineups["away"]["players"][10]["substitute"] = True
+
+    with pytest.raises(contract.ContractError, match="exactly 11 starters"):
+        contract.summarize_lineup_side(lineups, "away")
+
+
+def test_duplicate_provider_player_id_blocks_dry_run():
+    lineups = _complete_lineups()
+    lineups["away"]["players"][1]["player"]["id"] = lineups["away"]["players"][0]["player"]["id"]
+
+    with pytest.raises(contract.ContractError, match="duplicate SofaScore player IDs"):
+        contract.summarize_lineup_side(lineups, "away")
