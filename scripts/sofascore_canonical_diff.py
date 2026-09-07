@@ -226,21 +226,48 @@ def build_proposed_canonical_diff(
     )
 
     lineup_rows = list(leeds_players)
-    if len(lineup_rows) != 20:
-        raise CanonicalDiffError(f"Leeds matchday squad must contain 20 players; found {len(lineup_rows)}")
+    substitution_rows = list(leeds_substitutions)
     starters = [row for row in lineup_rows if row.get("started") is True]
     if len(starters) != 11:
         raise CanonicalDiffError(f"Leeds XI must contain 11 starters; found {len(starters)}")
 
-    for index, row in enumerate(lineup_rows, start=1):
+    provider_ids: list[int] = []
+    substitute_provider_ids: set[int] = set()
+    for row in lineup_rows:
         provider_player_id = _require_int(row.get("provider_player_id"), "lineup provider player ID")
-        player_id = _resolved_leeds_player(identity_package, provider_player_id)
         started = row.get("started") is True
         substitute = row.get("substitute") is True
         if started == substitute:
             raise CanonicalDiffError(
                 f"player provider_id={provider_player_id} must be exactly one of started/substitute"
             )
+        provider_ids.append(provider_player_id)
+        if substitute:
+            substitute_provider_ids.add(provider_player_id)
+
+    if len(provider_ids) != len(set(provider_ids)):
+        raise CanonicalDiffError("Leeds appearance population contains duplicate provider player IDs")
+
+    proven_player_on_ids = {
+        _require_int(row.get("player_in"), "substitution player_in provider ID")
+        for row in substitution_rows
+    }
+    if len(proven_player_on_ids) != len(substitution_rows):
+        raise CanonicalDiffError("Leeds substitution population contains duplicate player-on identities")
+    if substitute_provider_ids != proven_player_on_ids:
+        raise CanonicalDiffError(
+            "Leeds substitute appearance population must exactly match proven substitution player-on population"
+        )
+    if len(lineup_rows) != 11 + len(proven_player_on_ids):
+        raise CanonicalDiffError(
+            "Leeds appearance population must equal 11 starters plus distinct proven players-on"
+        )
+
+    for index, row in enumerate(lineup_rows, start=1):
+        provider_player_id = _require_int(row.get("provider_player_id"), "lineup provider player ID")
+        player_id = _resolved_leeds_player(identity_package, provider_player_id)
+        started = row.get("started") is True
+        substitute = row.get("substitute") is True
         operations.append(
             _operation(
                 "player_matches",
@@ -286,7 +313,6 @@ def build_proposed_canonical_diff(
             )
         )
 
-    substitution_rows = list(leeds_substitutions)
     for row in substitution_rows:
         off_provider_id = _require_int(row.get("player_out"), "substitution player_out provider ID")
         on_provider_id = _require_int(row.get("player_in"), "substitution player_in provider ID")
