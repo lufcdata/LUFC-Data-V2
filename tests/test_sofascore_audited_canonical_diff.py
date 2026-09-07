@@ -45,10 +45,10 @@ def _source():
         {"sofascore_player_id": 115365, "name": "Lewis Dunk", "shirt_number": 5, "jersey_number": 5, "substitute": False},
         {"sofascore_player_id": 1405212, "name": "Luka Vušković", "shirt_number": 44, "jersey_number": 44, "substitute": False},
     ]
-    source["staged_events"] = {"database_writes": 0, "promotion_performed": False, "events": [
+    source["staged_events"]["events"].extend([
         {"event_kind": "goal", "team_side": "LEEDS", "provider_player_id": 929132, "minute_raw": "15'", "minute_base": 15, "stoppage_minute": None, "period": "1ST", "event_json": {"player": {"id": 929132, "name": "Jayden Bogle"}, "assist1": {"id": 871886, "name": "Ao Tanaka"}, "isHome": False, "incidentType": "goal"}},
         {"event_kind": "goal", "team_side": "OPPONENT", "provider_player_id": 1405212, "minute_raw": "71'", "minute_base": 71, "stoppage_minute": None, "period": "2ND", "event_json": {"player": {"id": 1405212, "name": "Luka Vušković"}, "assist1": {"id": 997152, "name": "Maxim De Cuyper"}, "isHome": True, "incidentType": "goal"}},
-    ]}
+    ])
     return source
 
 
