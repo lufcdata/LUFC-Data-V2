@@ -92,11 +92,36 @@ def _lineup_rows(source_bundle: Mapping[str, Any], leeds_side: str) -> list[dict
     bench = side.get("bench")
     if not isinstance(starters, list) or not isinstance(bench, list):
         raise SourceCanonicalDiffError("Leeds lineup starter/bench populations are missing")
-    if len(starters) != 11 or len(starters) + len(bench) != 20:
-        raise SourceCanonicalDiffError("Leeds lineup must contain 11 starters and 20 squad players")
+    if len(starters) != 11:
+        raise SourceCanonicalDiffError("Leeds lineup must contain exactly 11 starters")
 
+    populations = _mapping(source_bundle.get("appearance_population"), "source_bundle.appearance_population")
+    population = _mapping(populations.get(leeds_side), f"source_bundle.appearance_population.{leeds_side}")
+    used_ids = population.get("used_substitute_ids")
+    appearance_ids = population.get("appearance_ids")
+    if not isinstance(used_ids, list) or not all(isinstance(value, int) for value in used_ids):
+        raise SourceCanonicalDiffError("Leeds used-substitute appearance population is missing")
+    if not isinstance(appearance_ids, list) or not all(isinstance(value, int) for value in appearance_ids):
+        raise SourceCanonicalDiffError("Leeds authoritative appearance population is missing")
+    used_set = set(used_ids)
+    appearance_set = set(appearance_ids)
+
+    starter_ids = {
+        _integer(_mapping(row, "starter").get("sofascore_player_id"), "starter provider player ID")
+        for row in starters
+    }
+    bench_by_id = {
+        _integer(_mapping(row, "bench player").get("sofascore_player_id"), "bench provider player ID"): row
+        for row in bench
+    }
+    if not used_set.issubset(bench_by_id):
+        raise SourceCanonicalDiffError("Leeds used-substitute population is not contained in named bench")
+    if appearance_set != starter_ids | used_set:
+        raise SourceCanonicalDiffError("Leeds appearance population does not equal starters plus proven players-on")
+
+    used_bench = [row for row in bench if _integer(_mapping(row, "bench player").get("sofascore_player_id"), "bench provider player ID") in used_set]
     result: list[dict[str, Any]] = []
-    for bucket, rows in (("XI", starters), ("SUB", bench)):
+    for bucket, rows in (("XI", starters), ("SUB", used_bench)):
         for index, raw in enumerate(rows, start=1):
             row = _mapping(raw, "lineup player")
             shirt_number = row.get("shirt_number")
@@ -114,6 +139,8 @@ def _lineup_rows(source_bundle: Mapping[str, Any], leeds_side: str) -> list[dict
                     "shirt_number": shirt_number,
                 }
             )
+    if {row["provider_player_id"] for row in result} != appearance_set:
+        raise SourceCanonicalDiffError("canonical player proposal does not match authoritative appearance population")
     return result
 
 
@@ -250,7 +277,6 @@ def _goal_rows(
                     "assist_name": assist_name,
                     "is_own_goal": str(incident.get("incidentClass") or "").casefold()
                     in {"owngoal", "own goal"},
-                    # Explicitly unset until provider -> LUFC taxonomy contracts exist.
                     "goal_type": None,
                     "location": None,
                     "body_part": None,
