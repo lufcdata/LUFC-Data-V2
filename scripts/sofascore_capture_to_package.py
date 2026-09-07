@@ -2,9 +2,10 @@
 """Build a fully evidence-driven zero-write ingestion package from a verified capture.
 
 This runner joins the on-disk capture verifier to the fully evidence-driven ingestion
-orchestrator. It never performs database access or canonical promotion. Identity mapping,
-canonical diff, secondary evidence and optional backup/rollback attestations are explicit
-JSON inputs; source payloads always come from the verified capture directory.
+orchestrator. It never performs database access or canonical promotion. Source payloads
+always come from the verified capture directory. LUFC-scoped identities can now be
+derived directly from provider-namespaced mapping rows, avoiding manually assembled
+identity packages.
 """
 
 from __future__ import annotations
@@ -13,7 +14,7 @@ import argparse
 import json
 import sys
 from pathlib import Path
-from typing import Any, Mapping
+from typing import Any, Iterable, Mapping
 
 from sofascore_canonical_match_enrichment import (
     build_canonical_match_enrichment,
@@ -25,6 +26,7 @@ from sofascore_source_derived_dry_run import build_source_derived_dry_run
 from sofascore_source_driven_ingestion_package import (
     build_fully_evidence_driven_ingestion_package,
 )
+from sofascore_source_identity_package import build_source_identity_package
 
 
 class CaptureToPackageError(RuntimeError):
@@ -47,6 +49,15 @@ def _optional_json_object(path: Path | None, label: str) -> dict[str, Any] | Non
     return None if path is None else _read_json_object(path, label)
 
 
+def _mapping_rows_from_document(document: Mapping[str, Any]) -> list[Mapping[str, Any]]:
+    rows = document.get("mappings")
+    if not isinstance(rows, list) or not rows:
+        raise CaptureToPackageError("identity mappings document must contain a non-empty mappings[]")
+    if any(not isinstance(row, Mapping) for row in rows):
+        raise CaptureToPackageError("identity mappings document contains a non-object row")
+    return list(rows)
+
+
 def _require_zero_write(result: Mapping[str, Any]) -> None:
     if result.get("database_writes") != 0:
         raise CaptureToPackageError("ingestion result reports database writes")
@@ -61,25 +72,65 @@ def _require_zero_write(result: Mapping[str, Any]) -> None:
         raise CaptureToPackageError("ingestion package reports canonical promotion")
 
 
+def _identity_mode(
+    *,
+    raw_payloads: Mapping[str, Any],
+    leeds_team_provider_id: int,
+    identity_package: Mapping[str, Any] | None,
+    identity_mapping_validation: Mapping[str, Any] | None,
+    identity_mappings: Iterable[Mapping[str, Any]] | None,
+) -> tuple[Mapping[str, Any], Mapping[str, Any], Mapping[str, Any] | None]:
+    if identity_mappings is not None:
+        if identity_package is not None or identity_mapping_validation is not None:
+            raise CaptureToPackageError(
+                "provide either identity_mappings or prebuilt identity package/validation, not both"
+            )
+        source_identity = build_source_identity_package(
+            raw_payloads=raw_payloads,
+            leeds_team_provider_id=leeds_team_provider_id,
+            mappings=identity_mappings,
+        )
+        return (
+            source_identity["identity_package"],
+            source_identity["identity_mapping_validation"],
+            source_identity,
+        )
+
+    if identity_package is None or identity_mapping_validation is None:
+        raise CaptureToPackageError(
+            "identity mappings or both prebuilt identity package and validation are required"
+        )
+    return identity_package, identity_mapping_validation, None
+
+
 def build_package_from_capture(
     *,
     capture_dir: Path,
     run_id: str,
     importer_git_sha: str,
     leeds_team_provider_id: int,
-    identity_package: Mapping[str, Any],
-    identity_mapping_validation: Mapping[str, Any],
     canonical_diff: Mapping[str, Any],
+    identity_package: Mapping[str, Any] | None = None,
+    identity_mapping_validation: Mapping[str, Any] | None = None,
+    identity_mappings: Iterable[Mapping[str, Any]] | None = None,
     canonical_context: Mapping[str, Any] | None = None,
     secondary_evidence: Mapping[str, Any] | None = None,
     backup: Mapping[str, Any] | None = None,
     rollback_manifest: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
-    """Verify raw capture, enrich safe match fields, then build the zero-write package."""
+    """Verify raw capture, derive scoped identities, enrich safe fields and package."""
     capture = load_verified_capture(Path(capture_dir))
     raw_payloads = capture.get("raw_payloads")
     if not isinstance(raw_payloads, Mapping):
         raise CaptureToPackageError("verified capture has no raw payload map")
+
+    effective_identity_package, effective_identity_validation, source_identity = _identity_mode(
+        raw_payloads=raw_payloads,
+        leeds_team_provider_id=leeds_team_provider_id,
+        identity_package=identity_package,
+        identity_mapping_validation=identity_mapping_validation,
+        identity_mappings=identity_mappings,
+    )
 
     effective_diff: Mapping[str, Any] = canonical_diff
     match_enrichment: Mapping[str, Any] | None = None
@@ -108,9 +159,9 @@ def build_package_from_capture(
         importer_git_sha=importer_git_sha,
         raw_payloads=raw_payloads,
         leeds_team_provider_id=leeds_team_provider_id,
-        identity_package=identity_package,
+        identity_package=effective_identity_package,
         canonical_diff=effective_diff,
-        identity_mapping_validation=identity_mapping_validation,
+        identity_mapping_validation=effective_identity_validation,
         secondary_evidence=secondary_evidence,
         backup=backup,
         rollback_manifest=rollback_manifest,
@@ -126,6 +177,7 @@ def build_package_from_capture(
             "verified_payload_sha256": capture["verified_payload_sha256"],
             "unavailable_payloads": capture["unavailable_payloads"],
         },
+        "source_identity": source_identity,
         "canonical_match_enrichment": match_enrichment,
         "ingestion": result,
         "database_writes": 0,
@@ -150,8 +202,9 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--run-id", required=True)
     parser.add_argument("--importer-git-sha", required=True)
     parser.add_argument("--leeds-team-provider-id", type=int, default=34)
-    parser.add_argument("--identity-package", type=Path, required=True)
-    parser.add_argument("--identity-validation", type=Path, required=True)
+    parser.add_argument("--identity-mappings", type=Path)
+    parser.add_argument("--identity-package", type=Path)
+    parser.add_argument("--identity-validation", type=Path)
     parser.add_argument("--canonical-diff", type=Path, required=True)
     parser.add_argument("--canonical-context", type=Path)
     parser.add_argument("--secondary-evidence", type=Path)
@@ -164,15 +217,34 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
 def main(argv: list[str] | None = None) -> int:
     args = _parse_args(argv or sys.argv[1:])
     try:
+        mappings = None
+        identity_package = None
+        identity_validation = None
+        if args.identity_mappings is not None:
+            mappings_document = _read_json_object(args.identity_mappings, "identity mappings")
+            mappings = _mapping_rows_from_document(mappings_document)
+            if args.identity_package is not None or args.identity_validation is not None:
+                raise CaptureToPackageError(
+                    "--identity-mappings cannot be combined with --identity-package/--identity-validation"
+                )
+        else:
+            if args.identity_package is None or args.identity_validation is None:
+                raise CaptureToPackageError(
+                    "provide --identity-mappings or both --identity-package and --identity-validation"
+                )
+            identity_package = _read_json_object(args.identity_package, "identity package")
+            identity_validation = _read_json_object(
+                args.identity_validation, "identity mapping validation"
+            )
+
         result = build_package_from_capture(
             capture_dir=args.capture_dir,
             run_id=args.run_id,
             importer_git_sha=args.importer_git_sha,
             leeds_team_provider_id=args.leeds_team_provider_id,
-            identity_package=_read_json_object(args.identity_package, "identity package"),
-            identity_mapping_validation=_read_json_object(
-                args.identity_validation, "identity mapping validation"
-            ),
+            identity_package=identity_package,
+            identity_mapping_validation=identity_validation,
+            identity_mappings=mappings,
             canonical_diff=_read_json_object(args.canonical_diff, "canonical diff"),
             canonical_context=_optional_json_object(
                 args.canonical_context, "canonical match context"
