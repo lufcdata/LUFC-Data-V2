@@ -28,6 +28,8 @@ LEEDS_IDS = [
     980643, 827681, 282229, 1118177, 929132, 889861, 847097, 871886, 834308, 372344,
     865523, 886930, 973431, 355528, 803185, 190161, 906075, 866191, 828639, 1146148,
 ]
+LEEDS_USED_SUB_IDS = [886930, 973431, 355528, 803185]
+LEEDS_APPEARANCE_IDS = LEEDS_IDS[:11] + LEEDS_USED_SUB_IDS
 
 
 def _resolution(scope: str, provider_id: int, canonical_id: int):
@@ -102,6 +104,19 @@ def _source_bundle():
                 "starters": rows[:11],
                 "bench": rows[11:],
             },
+        },
+        "appearance_population": {
+            "away": {
+                "status": "PASS",
+                "starter_ids": LEEDS_IDS[:11],
+                "used_substitute_ids": LEEDS_USED_SUB_IDS,
+                "unused_bench_ids": LEEDS_IDS[15:],
+                "appearance_ids": LEEDS_APPEARANCE_IDS,
+                "starter_count": 11,
+                "used_substitute_count": 4,
+                "unused_bench_count": 5,
+                "appearance_count": 15,
+            }
         },
         "reconciliation": {
             "goals": {
@@ -210,6 +225,14 @@ def test_brighton_source_adapter_builds_real_scoped_zero_write_diff():
     assert match["values"]["attendance"] == 31661
     assert match["values"]["formation"] == "3-5-2"
 
+    player_rows = [row for row in result["operations"] if row["table"] == "player_matches"]
+    assert len(player_rows) == 15
+    assert sum(1 for row in player_rows if row["values"]["started"]) == 11
+    assert sum(1 for row in player_rows if row["values"]["substitute"]) == 4
+    proposed_provider_ids = {row["provider_evidence"]["provider_player_id"] for row in player_rows}
+    assert proposed_provider_ids == set(LEEDS_APPEARANCE_IDS)
+    assert proposed_provider_ids.isdisjoint(set(LEEDS_IDS[15:]))
+
 
 def test_bogle_goal_semantics_are_derived_from_full_match_chronology():
     result = source_diff.build_source_canonical_diff(
@@ -229,7 +252,6 @@ def test_bogle_goal_semantics_are_derived_from_full_match_chronology():
     assert goal["values"]["minute_normalised"] == 15
     assert goal["values"]["game_state"] == "Level"
     assert goal["values"]["goal_state"] == "1st Goal"
-    # SofaScore taxonomies are preserved in raw/staging, not silently re-labelled canonically.
     assert goal["values"]["goal_type"] is None
     assert goal["values"]["location"] is None
     assert goal["values"]["body_part"] is None
