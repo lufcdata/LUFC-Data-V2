@@ -95,7 +95,9 @@ def test_brighton_regression_is_exactly_11_starters_plus_4_used_subs():
     assert sum(x["values"]["started"] is True for x in rows)==11
     assert sum(x["values"]["substitute"] is True for x in rows)==4
     proposed={x["key"]["player_id"] for x in rows}
-    unused_canonical={_resolution("leeds_player",pid,10000+i)["canonical_id"] for i,pid in enumerate(UNUSED)}
+    resolutions=_identity_package()["leeds_players"]["resolutions"]
+    unused_canonical={row["canonical_id"] for row in resolutions if row["provider_id"] in set(UNUSED)}
+    assert len(unused_canonical)==5
     assert proposed.isdisjoint(unused_canonical)
 
 
