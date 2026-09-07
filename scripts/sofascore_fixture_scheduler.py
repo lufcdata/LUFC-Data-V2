@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """Fixture-aware, read-only Leeds scheduler for SofaScore ingestion.
 
-Discovers Leeds' next fixture directly from SofaScore on every run, so broadcaster
-moves to date/kick-off are picked up from the provider rather than a stale local
-calendar. It never writes to Supabase and only invokes the existing read-only
-collector after SofaScore marks a fixture finished.
+Discovers Leeds' next fixture directly from SofaScore so broadcaster moves to date
+or kick-off are picked up from the provider rather than a stale local calendar.
+The match-day policy begins full-time status checks at kick-off + 115 minutes and
+then permits another check every 10 minutes until SofaScore reports finished.
+No canonical database writes are performed here.
 """
 from __future__ import annotations
 
@@ -12,7 +13,7 @@ import argparse
 import json
 import subprocess
 import sys
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -27,6 +28,8 @@ from sofascore_readonly_collector import (
 
 STATE_PATH = Path("source_data/sofascore/scheduler_state.json")
 COLLECTOR = Path(__file__).with_name("sofascore_readonly_collector.py")
+FIRST_FT_CHECK_MINUTES = 115
+FT_RECHECK_MINUTES = 10
 
 
 def _leeds_event(event: dict[str, Any], team_id: int) -> bool:
@@ -73,6 +76,15 @@ def _save_state(path: Path, state: dict[str, Any]) -> None:
     path.write_text(json.dumps(state, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 
+def _next_ft_check(kickoff: datetime, now: datetime) -> datetime:
+    first = kickoff + timedelta(minutes=FIRST_FT_CHECK_MINUTES)
+    if now <= first:
+        return first
+    elapsed = (now - first).total_seconds()
+    intervals = int(elapsed // (FT_RECHECK_MINUTES * 60)) + 1
+    return first + timedelta(minutes=intervals * FT_RECHECK_MINUTES)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--team-id", type=int, default=DEFAULT_LEEDS_SOFASCORE_TEAM_ID)
@@ -95,8 +107,21 @@ def main() -> int:
     if next_event:
         dt = _event_datetime(next_event)
         print("NEXT_FIXTURE", next_event.get("id"), dt.isoformat() if dt else "UNKNOWN", _opponent(next_event, args.team_id), _competition_name(next_event))
+        if dt:
+            print("FIRST_FT_CHECK", (dt + timedelta(minutes=FIRST_FT_CHECK_MINUTES)).isoformat())
     else:
         print("NEXT_FIXTURE NONE")
+
+    # A started fixture may have moved from the provider's next feed to its last feed
+    # before it is finished. Surface the next useful polling time without treating time
+    # itself as proof of full-time.
+    unfinished_recent = [e for e in recent if not _is_finished(e) and isinstance(e.get("id"), int)]
+    unfinished_recent.sort(key=lambda e: _event_datetime(e) or datetime.min.replace(tzinfo=timezone.utc), reverse=True)
+    if unfinished_recent:
+        live = unfinished_recent[0]
+        kickoff = _event_datetime(live)
+        if kickoff and kickoff <= now:
+            print("MATCH_DAY_NEXT_CHECK", live["id"], _next_ft_check(kickoff, now).isoformat())
 
     if not uncaptured:
         print("CAPTURE_ACTION NONE")
