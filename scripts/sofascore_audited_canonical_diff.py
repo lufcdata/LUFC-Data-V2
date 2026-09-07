@@ -13,6 +13,7 @@ from __future__ import annotations
 
 from typing import Any, Mapping
 
+from sofascore_opposition_captain_diff import build_opposition_captain_proposal
 from sofascore_opposition_goal_diff import build_opposition_goal_proposal
 from sofascore_opposition_manager_diff import build_opposition_manager_assignment_proposal
 from sofascore_shirt_number_diff import build_shirt_number_operations
@@ -85,17 +86,23 @@ def build_audited_canonical_diff(
         canonical_match_id=match_id,
         staged_events=staged_events,
     )
+    opposition_captain = build_opposition_captain_proposal(
+        canonical_match_id=match_id,
+        source_bundle=source_bundle,
+        evidence_bundle=evidence_bundle,
+    )
 
     operations = list(base.get("operations") or [])
     operations.extend(shirts["operations"])
     operations.extend(manager["operations"])
     # These are explicit BLOCKED operations: carrying them in the diff makes the
-    # missing destination inspectable without pretending it has been deployed.
+    # missing destinations inspectable without pretending they have been deployed.
     operations.extend(opposition_goals["operations"])
+    operations.extend(opposition_captain["operations"])
 
     # Remove exactly the gap now satisfied by the audited Gold manager adapter. The
-    # structured-opposition-goals gap deliberately remains because its destination is
-    # designed but not deployed.
+    # structured-opposition-goals and opposition-captain gaps deliberately remain because
+    # their destinations are designed/preserved but not deployed.
     base_gaps = base.get("schema_gaps")
     if not isinstance(base_gaps, list):
         raise AuditedCanonicalDiffError("base canonical diff has no schema-gap population")
@@ -117,8 +124,18 @@ def build_audited_canonical_diff(
         raise AuditedCanonicalDiffError(
             f"expected exactly one structured-opposition-goals schema gap; found {len(opposition_goal_gaps)}"
         )
+    captain_gaps = [
+        gap for gap in base_gaps
+        if isinstance(gap, Mapping) and gap.get("field") == "opposition captain"
+    ]
+    if len(captain_gaps) != 1:
+        raise AuditedCanonicalDiffError(
+            f"expected exactly one opposition-captain schema gap; found {len(captain_gaps)}"
+        )
     if opposition_goals.get("status") != "SCHEMA_GAP" or opposition_goals.get("destination_deployed") is not False:
         raise AuditedCanonicalDiffError("opposition-goal adapter must remain schema-blocked before deployment")
+    if opposition_captain.get("status") != "SCHEMA_GAP" or opposition_captain.get("destination_deployed") is not False:
+        raise AuditedCanonicalDiffError("opposition-captain adapter must remain schema-blocked before deployment")
 
     remaining_gaps = [gap for gap in base_gaps if gap not in manager_gaps]
 
@@ -148,6 +165,15 @@ def build_audited_canonical_diff(
             "opposition_goal_count": opposition_goals["opposition_goal_count"],
             "operation_count": opposition_goals["operation_count"],
             "blocker": opposition_goals["blocker"],
+        },
+        "opposition_captain_adapter": {
+            "status": opposition_captain["status"],
+            "canonical_destination": opposition_captain["canonical_destination"],
+            "destination_deployed": opposition_captain["destination_deployed"],
+            "captain_name_raw": opposition_captain["captain_name_raw"],
+            "provider_player_id": opposition_captain["provider_player_id"],
+            "operation_count": opposition_captain["operation_count"],
+            "blocker": opposition_captain["blocker"],
         },
         "audited_composition": True,
         "database_writes": 0,
