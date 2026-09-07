@@ -19,6 +19,7 @@ def _load(name: str):
     return module
 
 
+_load("sofascore_appearance_population")
 _load("sofascore_dry_run_contract")
 _load("sofascore_staged_events")
 source_dry_run = _load("sofascore_source_derived_dry_run")
@@ -28,9 +29,20 @@ def _player(player_id: int, name: str = "Player"):
     return {"id": player_id, "name": name, "position": "M"}
 
 
-def _lineup_entries(start: int, captain_id: int):
-    ids = [captain_id] + [start + i for i in range(19) if start + i != captain_id]
-    ids = ids[:20]
+def _lineup_entries(start: int, captain_id: int, bench_ids: tuple[int, ...] = ()):
+    starters = [captain_id]
+    candidate = start
+    while len(starters) < 11:
+        if candidate != captain_id:
+            starters.append(candidate)
+        candidate += 1
+
+    bench = list(bench_ids)
+    while len(bench) < 9:
+        if candidate not in starters and candidate not in bench:
+            bench.append(candidate)
+        candidate += 1
+    ids = starters + bench[:9]
     return [
         {
             "player": _player(player_id),
@@ -88,8 +100,14 @@ def test_brighton_source_payloads_derive_reconciliation_and_staged_population():
         },
         "lineups": {
             "confirmed": True,
-            "home": {"formation": "4-2-3-1", "players": _lineup_entries(4000000, 115365)},
-            "away": {"formation": "3-5-2", "players": _lineup_entries(5000000, 847097)},
+            "home": {
+                "formation": "4-2-3-1",
+                "players": _lineup_entries(4000000, 115365, (1444898, 1200006, 847094)),
+            },
+            "away": {
+                "formation": "3-5-2",
+                "players": _lineup_entries(5000000, 847097, (1106242, 1056093, 1111117, 996672)),
+            },
         },
         "incidents": {"incidents": incidents},
         "statistics": {
@@ -108,6 +126,11 @@ def test_brighton_source_payloads_derive_reconciliation_and_staged_population():
     assert result["leeds_is_home"] is False
     assert result["lineups"]["home"]["formation"] == "4-2-3-1"
     assert result["lineups"]["away"]["formation"] == "3-5-2"
+    assert result["appearance_population"]["home"]["appearance_count"] == 14
+    assert result["appearance_population"]["home"]["unused_bench_count"] == 6
+    assert result["appearance_population"]["away"]["appearance_count"] == 15
+    assert result["appearance_population"]["away"]["used_substitute_count"] == 4
+    assert result["appearance_population"]["away"]["unused_bench_count"] == 5
     assert result["reconciliation"]["goals"]["final_score"] == {"home": 1, "away": 1}
     assert result["reconciliation"]["goals"]["half_time_score"] == {"home": 0, "away": 1}
     assert result["reconciliation"]["substitutions"]["substitution_count"] == 7
