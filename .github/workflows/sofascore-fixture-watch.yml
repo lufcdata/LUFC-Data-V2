@@ -111,4 +111,5 @@ jobs:
 
       - name: Report durable capture identities
         if: steps.uk-time.outputs.run == 'true'
-        run: echo 'Raw capture event IDs present: ${{ steps.captures.outputs.matrix }}'
+        run: |
+          echo "Raw capture event IDs present: ${{ steps.captures.outputs.matrix }}"
