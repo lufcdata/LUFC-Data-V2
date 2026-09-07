@@ -48,13 +48,13 @@ function App() {
  return <ErrorBoundary><main className={`leaderboard-isolate ${isDark?'theme-dark':'theme-light'}`}>
   {page!=='player-admin'&&<nav className="page-nav" aria-label="Database sections">
    <button className={page==='matches'||page==='match-centre'?'active':''} onClick={()=>setPage('matches')}>Matches</button>
-   <button className={page==='debutants'?'active':''} onClick={()=>setPage('debutants')}>Debutants</button>
    <button className={page==='players'||page==='player-profile'?'active':''} onClick={()=>setPage('players')}>Players</button>
    <button className={page==='goals'?'active':''} onClick={()=>setPage('goals')}>Goals</button>
    <button className={page==='managers'||page==='manager-profile'?'active':''} onClick={()=>setPage('managers')}>Managers</button>
    <button className={page==='opponents'?'active':''} onClick={()=>setPage('opponents')}>Opponents</button>
    <button className={page==='red-cards'?'active':''} onClick={()=>setPage('red-cards')}>Red Cards</button>
    <button className={page==='penalties'?'active':''} onClick={()=>setPage('penalties')}>Penalties</button>
+   <button className={page==='debutants'?'active':''} onClick={()=>setPage('debutants')}>Debutants</button>
    <button className={page==='own-goals'?'active':''} onClick={()=>setPage('own-goals')}>Own Goals</button>
    <button className={page==='stat-pack'?'active':''} onClick={()=>setPage('stat-pack')}>Stat Pack</button>
    <button className={page==='test-a1'?'active':''} onClick={()=>setPage('test-a1')}>Test A1</button>
