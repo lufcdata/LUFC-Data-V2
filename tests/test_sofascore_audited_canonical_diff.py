@@ -76,6 +76,7 @@ def _source():
             {
                 "event_kind": "goal",
                 "team_side": "LEEDS",
+                "provider_player_id": 929132,
                 "minute_raw": "15'",
                 "minute_base": 15,
                 "stoppage_minute": None,
@@ -90,6 +91,7 @@ def _source():
             {
                 "event_kind": "goal",
                 "team_side": "OPPONENT",
+                "provider_player_id": 1405212,
                 "minute_raw": "71'",
                 "minute_base": 71,
                 "stoppage_minute": None,
