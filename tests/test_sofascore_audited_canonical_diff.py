@@ -28,6 +28,7 @@ _load_script("sofascore_source_canonical_diff")
 _load_script("sofascore_shirt_number_diff")
 _load_script("sofascore_opposition_manager_diff")
 _load_script("sofascore_opposition_goal_diff")
+_load_script("sofascore_opposition_captain_diff")
 audited = _load_script("sofascore_audited_canonical_diff")
 fixtures = _load_path(
     "source_diff_fixture_helpers",
@@ -48,6 +49,18 @@ def _canonical_context():
 
 def _source_bundle_with_goals():
     source = fixtures._source_bundle()
+    # The audited Brighton integration fixture must contain the actual opposition
+    # captain population rather than relying on captain evidence alone.
+    source["lineups"]["home"]["starters"] = [
+        {
+            "sofascore_player_id": 115365,
+            "name": "Lewis Dunk",
+            "shirt_number": 5,
+            "jersey_number": 5,
+            "substitute": False,
+            "captain": True,
+        }
+    ]
     staged = source["staged_events"]
     staged["database_writes"] = 0
     staged["promotion_performed"] = False
