@@ -1,5 +1,15 @@
 .players-nationality-select{min-width:96px;width:104px;max-width:104px}
+.players-threshold-control{display:flex;align-items:center;gap:8px;min-width:285px}
+.players-threshold-select{min-width:92px;width:100px;max-width:100px}
+.players-threshold-slider-wrap{display:flex;align-items:center;gap:8px;min-width:175px}
+.players-threshold-slider{--players-threshold-progress:0%;width:120px;accent-color:#4BFAE5}
+.players-threshold-value{font-family:'DM Mono',monospace;font-size:12px;white-space:nowrap;color:var(--text-muted,#aeb4c0)}
+.players-loss-pct-fill{background:#F2116B!important}
 
 @media(max-width:700px){
   .players-nationality-select{width:100%;max-width:none;min-width:0}
+  .players-threshold-control{width:100%;min-width:0}
+  .players-threshold-select{width:110px;max-width:110px}
+  .players-threshold-slider-wrap{flex:1;min-width:0}
+  .players-threshold-slider{width:100%}
 }
