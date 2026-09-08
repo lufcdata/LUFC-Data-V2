@@ -1,0 +1,21 @@
+import React,{useEffect,useState}from'react';
+import PlayerIcon from'./PlayerIcon';
+import ManagerIcon from'./ManagerIcon';
+import{supabase,supabaseConfigError}from'./supabase';
+import'./PlayerOpponentWidgets.css';
+
+type Row={id:number|null;name:string;image?:string|null;appearances?:number;wins?:number;winPct?:number;goals?:number;gpg?:number;matches?:number;draws?:number;losses?:number;redCards?:number;hatTricks?:number;maxGoals?:number;cleanSheets?:number;rate?:number;recipientType?:string};
+type Data={appearances:Row[];goals:Row[];leedsManagers:Row[];managersFaced:Row[];redCards:Row[];hatTricks:Row[];cleanSheets:Row[]};
+function ScopeToggle({all,onChange}:{all:boolean;onChange:(v:boolean)=>void}){return <div className="player-opponent-scope"><button className={!all?'active':''} onClick={()=>onChange(false)}>Top 5</button><button className={all?'active':''} onClick={()=>onChange(true)}>All</button></div>}
+function Avatar({row,manager=false}:{row:Row;manager?:boolean}){return manager?<ManagerIcon name={row.name} src={row.image??null}/>:<PlayerIcon name={row.name} src={row.image??null}/>}
+function Widget({title,rows,primary,secondary,maxValue,manager=false}:{title:string;rows:Row[];primary:(r:Row)=>string;secondary:(r:Row)=>React.ReactNode;maxValue:(r:Row)=>number;manager?:boolean}){const[all,setAll]=useState(false),shown=all?rows:rows.slice(0,5),max=Math.max(1,...rows.map(maxValue));return <section className={`card player-opponent-widget${!all?' top-five':''}`}><div className="player-opponent-widget-head"><div><span className="section-kicker">Opposition analysis</span><h2>{title}</h2></div><ScopeToggle all={all} onChange={setAll}/></div><div className="player-opponent-widget-list">{shown.map((r,i)=><div className="player-opponent-widget-row" key={`${r.id??r.name}-${i}`}><div className="player-opponent-widget-club opponent-widget-entity"><Avatar row={r} manager={manager}/><div><strong>{r.name}</strong><span>{secondary(r)}</span></div></div><div className="player-opponent-widget-value player-opponent-widget-value-emphasis"><strong>{primary(r)}</strong></div><div className="player-opponent-widget-track"><i style={{width:`${maxValue(r)/max*100}%`}}/></div></div>)}</div></section>}
+export default function OpponentProfileWidgets({clubId}:{clubId:number}){const[data,setData]=useState<Data|null>(null),[error,setError]=useState<string|null>(supabaseConfigError);useEffect(()=>{if(!supabase)return;let off=false;supabase.rpc('opponent_profile_widgets_v1',{p_club_id:clubId}).then(({data,error})=>{if(off)return;if(error)setError(error.message);else setData(data as Data)});return()=>{off=true}},[clubId]);if(error)return <div className="card lb-loading">Opponent widgets unavailable</div>;if(!data)return <div className="card lb-loading">Loading opponent analysis…</div>;
+return <div className="opponent-widget-grid">
+<Widget title="Most Appearances vs Club" rows={data.appearances} primary={r=>`${r.appearances} apps`} secondary={r=><><b>{r.wins}</b> wins / {r.appearances} appearances</>} maxValue={r=>r.appearances??0}/>
+<Widget title="Most Goals vs Club" rows={data.goals} primary={r=>`${r.goals} ${r.goals===1?'goal':'goals'}`} secondary={r=><>{r.appearances} apps · {Number(r.gpg??0).toFixed(2)} goals/app</>} maxValue={r=>r.goals??0}/>
+<Widget title="Leeds Managers Record vs Club" rows={data.leedsManagers} primary={r=>`${r.matches} matches`} secondary={r=><><b>{r.wins}</b>W · {r.draws}D · {r.losses}L · {Number(r.winPct??0).toFixed(1)}%</>} maxValue={r=>r.matches??0} manager/>
+<Widget title="Managers Faced" rows={data.managersFaced} primary={r=>`${r.matches} ${r.matches===1?'match':'matches'}`} secondary={r=><>Opposition manager appearances</>} maxValue={r=>r.matches??0} manager/>
+<Widget title="Red Cards vs Club" rows={data.redCards} primary={r=>`${r.redCards} RC`} secondary={r=><>{r.recipientType||'Leeds recipient'}</>} maxValue={r=>r.redCards??0}/>
+<Widget title="Most Hat-Tricks vs Club" rows={data.hatTricks} primary={r=>`${r.hatTricks} ${r.hatTricks===1?'hat-trick':'hat-tricks'}`} secondary={r=><>Best return: {r.maxGoals} goals</>} maxValue={r=>r.hatTricks??0}/>
+<Widget title="Most Clean Sheets vs Club" rows={data.cleanSheets} primary={r=>`${r.cleanSheets} CS`} secondary={r=><>{r.appearances} apps · {Number(r.rate??0).toFixed(1)}% clean-sheet rate</>} maxValue={r=>r.cleanSheets??0}/>
+</div>}
