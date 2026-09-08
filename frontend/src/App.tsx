@@ -9,6 +9,7 @@ import Debutants from './Debutants';
 import Goals from './Goals';
 import RedCards from './RedCards';
 import Penalties from './Penalties';
+import HatTricks from './HatTricks';
 import OwnGoals from './OwnGoals';
 import FirstTo from './FirstTo';
 import StatPack from './StatPack';
@@ -34,7 +35,7 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | 
   render() { if (this.state.error) return <main className="leaderboard-isolate"><div className="card lb-runtime-error"><strong>LUFC Data could not render.</strong><span>{this.state.error.message}</span></div></main>; return this.props.children; }
 }
 
-type Page='matches'|'match-centre'|'debutants'|'goals'|'red-cards'|'penalties'|'own-goals'|'first-to'|'stat-pack'|'players'|'player-profile'|'managers'|'manager-profile'|'opponents'|'test-a1'|'player-admin';
+type Page='matches'|'match-centre'|'debutants'|'goals'|'red-cards'|'penalties'|'hat-tricks'|'own-goals'|'first-to'|'stat-pack'|'players'|'player-profile'|'managers'|'manager-profile'|'opponents'|'test-a1'|'player-admin';
 function App() {
  const [theme,setTheme]=useState<'light'|'dark'>('dark');
  const [page,setPage]=useState<Page>(()=>{const params=new URLSearchParams(window.location.search);return window.location.pathname==='/admin/players'||params.get('admin')==='players'?'player-admin':'matches'});
@@ -46,7 +47,7 @@ function App() {
  const openMatch=(matchId:number)=>{setSelectedMatchId(matchId);setPage('match-centre')};
  const openPlayer=(playerId:number,playerName:string)=>{setSelectedPlayerId(playerId);setSelectedPlayerName(playerName);setPage('player-profile')};
  const openManager=(managerId:number)=>{setSelectedManagerId(managerId);setPage('manager-profile')};
- const content=page==='matches'?<Matches onSelectMatch={openMatch}/>:page==='match-centre'?<MatchCentre matchId={selectedMatchId} onBack={()=>setPage('matches')}/>:page==='debutants'?<Debutants onSelectMatch={openMatch} onSelectPlayer={openPlayer}/>:page==='goals'?<Goals/>:page==='red-cards'?<RedCards onSelectMatch={openMatch} onSelectPlayer={openPlayer} onSelectManager={openManager}/>:page==='penalties'?<Penalties onSelectMatch={openMatch} onSelectPlayer={openPlayer}/>:page==='own-goals'?<OwnGoals onSelectMatch={openMatch}/>:page==='first-to'?<FirstTo/>:page==='stat-pack'?<StatPack/>:page==='players'?<Players onSelectPlayer={openPlayer}/>:page==='player-profile'?<Fragment key={selectedPlayerId}><PlayerPage playerId={selectedPlayerId} onBack={()=>setPage('players')}/><PlayerMatchLog playerId={selectedPlayerId} playerName={selectedPlayerName}/></Fragment>:page==='managers'?<Managers onSelectManager={openManager}/>:page==='manager-profile'?<ManagerPage managerId={selectedManagerId} onBack={()=>setPage('managers')}/>:page==='test-a1'?<TestA1/>:page==='player-admin'?<PlayerAdmin/>:<Leaderboard/>;
+ const content=page==='matches'?<Matches onSelectMatch={openMatch}/>:page==='match-centre'?<MatchCentre matchId={selectedMatchId} onBack={()=>setPage('matches')}/>:page==='debutants'?<Debutants onSelectMatch={openMatch} onSelectPlayer={openPlayer}/>:page==='goals'?<Goals/>:page==='red-cards'?<RedCards onSelectMatch={openMatch} onSelectPlayer={openPlayer} onSelectManager={openManager}/>:page==='penalties'?<Penalties onSelectMatch={openMatch} onSelectPlayer={openPlayer}/>:page==='hat-tricks'?<HatTricks onSelectMatch={openMatch} onSelectPlayer={openPlayer}/>:page==='own-goals'?<OwnGoals onSelectMatch={openMatch}/>:page==='first-to'?<FirstTo/>:page==='stat-pack'?<StatPack/>:page==='players'?<Players onSelectPlayer={openPlayer}/>:page==='player-profile'?<Fragment key={selectedPlayerId}><PlayerPage playerId={selectedPlayerId} onBack={()=>setPage('players')}/><PlayerMatchLog playerId={selectedPlayerId} playerName={selectedPlayerName}/></Fragment>:page==='managers'?<Managers onSelectManager={openManager}/>:page==='manager-profile'?<ManagerPage managerId={selectedManagerId} onBack={()=>setPage('managers')}/>:page==='test-a1'?<TestA1/>:page==='player-admin'?<PlayerAdmin/>:<Leaderboard/>;
  return <ErrorBoundary><main className={`leaderboard-isolate ${isDark?'theme-dark':'theme-light'}`}>
   {page!=='player-admin'&&<nav className="page-nav" aria-label="Database sections">
    <button className={page==='matches'||page==='match-centre'?'active':''} onClick={()=>setPage('matches')}>Matches</button>
@@ -57,6 +58,7 @@ function App() {
    <button className={page==='opponents'?'active':''} onClick={()=>setPage('opponents')}>Opponents</button>
    <button className={page==='red-cards'?'active':''} onClick={()=>setPage('red-cards')}>Red Cards</button>
    <button className={page==='penalties'?'active':''} onClick={()=>setPage('penalties')}>Penalties</button>
+   <button className={page==='hat-tricks'?'active':''} onClick={()=>setPage('hat-tricks')}>Hat-Tricks</button>
    <button className={page==='debutants'?'active':''} onClick={()=>setPage('debutants')}>Debutants</button>
    <button className={page==='own-goals'?'active':''} onClick={()=>setPage('own-goals')}>Own Goals</button>
    <button className={page==='stat-pack'?'active':''} onClick={()=>setPage('stat-pack')}>Stat Pack</button>
