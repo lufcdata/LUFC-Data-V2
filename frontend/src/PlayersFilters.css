@@ -1,9 +1,18 @@
 .players-nationality-select{min-width:96px;width:104px;max-width:104px}
-.players-threshold-control{display:flex;align-items:center;gap:8px;min-width:285px}
+.players-threshold-control{display:flex;align-items:center;gap:8px;min-width:300px}
 .players-threshold-select{min-width:92px;width:100px;max-width:100px}
-.players-threshold-slider-wrap{display:flex;align-items:center;gap:8px;min-width:175px}
-.players-threshold-slider{--players-threshold-progress:0%;width:120px;accent-color:#4BFAE5}
-.players-threshold-value{font-family:'DM Mono',monospace;font-size:12px;white-space:nowrap;color:var(--text-muted,#aeb4c0)}
+.players-threshold-slider-wrap{display:flex;align-items:center;gap:8px;min-width:190px}
+.players-dual-range{--players-range-start:0%;--players-range-end:100%;position:relative;width:130px;height:20px;display:flex;align-items:center}
+.players-dual-range-track,.players-dual-range-fill{position:absolute;left:0;right:0;height:4px;border-radius:999px;pointer-events:none}
+.players-dual-range-track{background:rgba(255,255,255,.14)}
+.players-dual-range-fill{left:var(--players-range-start);right:calc(100% - var(--players-range-end));background:#4BFAE5}
+.players-dual-range-input{position:absolute;left:0;width:100%;height:20px;margin:0;background:transparent;appearance:none;-webkit-appearance:none;pointer-events:none}
+.players-dual-range-input::-webkit-slider-runnable-track{height:4px;background:transparent;border:0}
+.players-dual-range-input::-moz-range-track{height:4px;background:transparent;border:0}
+.players-dual-range-input::-webkit-slider-thumb{appearance:none;-webkit-appearance:none;width:14px;height:14px;margin-top:-5px;border-radius:50%;border:2px solid #242733;background:#4BFAE5;box-shadow:0 0 0 1px rgba(75,250,229,.45);pointer-events:auto;cursor:pointer}
+.players-dual-range-input::-moz-range-thumb{width:14px;height:14px;border-radius:50%;border:2px solid #242733;background:#4BFAE5;box-shadow:0 0 0 1px rgba(75,250,229,.45);pointer-events:auto;cursor:pointer}
+.players-dual-range-min{z-index:3}.players-dual-range-max{z-index:4}
+.players-threshold-value{font-family:'DM Mono',monospace;font-size:12px;white-space:nowrap;color:var(--text-muted,#aeb4c0);min-width:48px;text-align:right}
 .players-loss-pct-fill{background:#F2116B!important}
 
 @media(max-width:700px){
@@ -11,5 +20,5 @@
   .players-threshold-control{width:100%;min-width:0}
   .players-threshold-select{width:110px;max-width:110px}
   .players-threshold-slider-wrap{flex:1;min-width:0}
-  .players-threshold-slider{width:100%}
+  .players-dual-range{width:100%;flex:1}
 }
