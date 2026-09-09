@@ -1,9 +1,15 @@
 {
   "status": "READY_FOR_REVIEW",
-  "promotion_gate": "BLOCKED_PENDING_IDENTITY_AND_ATTENDANCE_REVIEW",
+  "promotion_gate": "BLOCKED_PENDING_PROVIDER_IDENTITY_MANAGER_IDENTITY_AND_ATTENDANCE_REVIEW",
   "database_writes": 0,
   "promotion_performed": false,
   "canonical_lufc_ids_assigned_from_provider_ids": false,
+  "framework": {
+    "quality_sequence": "COMPLETE -> CORRECT -> CONSISTENT -> REVERSIBLE -> ONLY THEN CANONICAL",
+    "architecture": "SofaScore -> immutable raw capture -> staging -> identity reconciliation -> validation -> proposed canonical diff -> verified pre-import backup -> controlled promotion -> canonical LUFC database -> app",
+    "fail_closed": true,
+    "production_promotion_authorised": false
+  },
   "fixture": {
     "date": "2026-09-09",
     "competition": "League Cup",
@@ -14,17 +20,31 @@
     "full_time": {"chelsea": 6, "leeds": 3},
     "half_time": {"chelsea": 0, "leeds": 1},
     "result_from_leeds_perspective": "Lost",
-    "kickoff_source_conflict": {
-      "sofascore": "19:15 UTC",
-      "scheduled_official_and_sky": "20:00 BST",
-      "status": "REVIEW_REQUIRED"
+    "kickoff": {
+      "scheduled": "20:00 BST",
+      "actual": "20:15 BST",
+      "actual_utc": "19:15 UTC",
+      "status": "VERIFIED_DELAYED_KICKOFF",
+      "note": "The scheduled 20:00 BST kick-off was delayed by 15 minutes because of London transport disruption. SofaScore's 19:15 UTC event time is therefore consistent with the verified actual 20:15 BST kick-off rather than a source conflict."
     },
     "referee": {"value": "Jarred Gillett", "status": "VERIFIED"},
-    "attendance": {"value": null, "status": "UNRESOLVED", "note": "One secondary source reports 35,696, but this has not been independently corroborated and exceeds the nominal capacity shown by that source; do not promote without verification."},
-    "leeds_manager": {"name": "Daniel Farke", "canonical_manager_id": 49, "status": "RESOLVED"},
+    "attendance": {
+      "value": 35696,
+      "status": "SECONDARY_CORROBORATION_ONLY_REVIEW_REQUIRED",
+      "note": "35,696 is independently visible on multiple secondary match-data surfaces, but no authoritative club/EFL source has yet been captured. Preserve as evidence but do not promote until the attendance rule is satisfied."
+    },
+    "leeds_manager": {"name": "Daniel Farke", "canonical_manager_id": 49, "canonical_manager_spell_id": 57, "status": "RESOLVED"},
     "opposition_manager": {"name": "Xabi Alonso", "canonical_managerial_person_id": null, "status": "IDENTITY_MISSING"},
     "opponent_club": {"name": "Chelsea", "canonical_club_id": 53, "status": "RESOLVED"},
     "leeds_captain": {"name": "Ethan Ampadu", "canonical_player_id": 866, "status": "RESOLVED"}
+  },
+  "provider_identity": {
+    "provider": "sofascore",
+    "provider_event_id": null,
+    "status": "BLOCKED_NOT_CAPTURED_FROM_PROVIDER_NAMESPACE",
+    "cross_source_candidate_event_id": 19872560,
+    "cross_source_candidate_status": "NOT_ACCEPTED_AS_PROVIDER_IDENTITY",
+    "note": "Several secondary football-data URLs use 19872560 for this fixture, but the Golden provider identity rule requires the SofaScore event ID to come from the provider-namespaced capture/reconciliation layer. The candidate is retained only as review evidence and must not populate canonical LUFC ID fields."
   },
   "leeds_appearance_population": {
     "rule": "11 starters + proven players-on only",
@@ -46,11 +66,11 @@
       {"player_id": 853, "name": "Brenden Aaronson"}
     ],
     "used_substitutes": [
-      {"player_id": 892, "name": "Anton Stach", "minute": "66'", "replaced": "Daniel James"},
-      {"player_id": 894, "name": "Dominic Calvert-Lewin", "minute": "66'", "replaced": "Lukas Nmecha"},
-      {"player_id": 878, "name": "Ao Tanaka", "minute": "67'", "replaced": "Sean Longstaff"},
-      {"player_id": 895, "name": "Noah Okafor", "minute": "67'", "replaced": "Brenden Aaronson"},
-      {"player_id": 890, "name": "Gabriel Gudmundsson", "minute": "78'", "replaced": "Melvin Bard"}
+      {"player_id": 892, "name": "Anton Stach", "minute_raw": "66'", "minute_base": 66, "stoppage_minute": 0, "timing_phase": "second_half", "replaced_player_id": 844, "replaced": "Daniel James"},
+      {"player_id": 894, "name": "Dominic Calvert-Lewin", "minute_raw": "66'", "minute_base": 66, "stoppage_minute": 0, "timing_phase": "second_half", "replaced_player_id": 887, "replaced": "Lukas Nmecha"},
+      {"player_id": 878, "name": "Ao Tanaka", "minute_raw": "67'", "minute_base": 67, "stoppage_minute": 0, "timing_phase": "second_half", "replaced_player_id": 891, "replaced": "Sean Longstaff"},
+      {"player_id": 895, "name": "Noah Okafor", "minute_raw": "67'", "minute_base": 67, "stoppage_minute": 0, "timing_phase": "second_half", "replaced_player_id": 853, "replaced": "Brenden Aaronson"},
+      {"player_id": 890, "name": "Gabriel Gudmundsson", "minute_raw": "78'", "minute_base": 78, "stoppage_minute": 0, "timing_phase": "second_half", "replaced_player_id": 903, "replaced": "Melvin Bard"}
     ],
     "unused_bench": [
       {"player_id": 900, "name": "James Trafford"},
@@ -58,31 +78,83 @@
       {"player_id": 904, "name": "Jean-Matteo Bahoya"},
       {"player_id": 901, "name": "Nico Elvedi"}
     ],
-    "validation": "PASS"
+    "validation": {
+      "status": "PASS",
+      "exactly_11_starters": true,
+      "starter_substitute_exclusive": true,
+      "proven_player_on_count": 5,
+      "substitute_appearance_count": 5,
+      "substitute_population_equals_proven_player_on_population": true,
+      "unused_bench_excluded_from_player_matches": true,
+      "duplicate_appearance_identities": 0
+    }
   },
   "leeds_goals": [
-    {"minute": "23'", "scorer_player_id": 899, "scorer": "Tarik Muharemović", "assist_player_id": 898, "assist": "Harry Wilson", "score_after": "0-1"},
-    {"minute": "48'", "scorer_player_id": 853, "scorer": "Brenden Aaronson", "assist_player_id": 887, "assist": "Lukas Nmecha", "score_after": "0-2"},
-    {"minute": "75'", "scorer_player_id": 894, "scorer": "Dominic Calvert-Lewin", "assist_player_id": 895, "assist": "Noah Okafor", "score_after": "4-3"}
+    {"minute_raw": "23'", "minute_normalised": 23, "scorer_player_id": 899, "scorer": "Tarik Muharemović", "assist_player_id": 898, "assist": "Harry Wilson", "score_after": "0-1"},
+    {"minute_raw": "48'", "minute_normalised": 48, "scorer_player_id": 853, "scorer": "Brenden Aaronson", "assist_player_id": 887, "assist": "Lukas Nmecha", "score_after": "0-2"},
+    {"minute_raw": "75'", "minute_normalised": 75, "scorer_player_id": 894, "scorer": "Dominic Calvert-Lewin", "assist_player_id": 895, "assist": "Noah Okafor", "score_after": "4-3"}
   ],
   "opposition_goals_evidence": [
-    {"minute": "53'", "scorer": "Cole Palmer", "penalty": true},
-    {"minute": "55'", "scorer": "Cole Palmer", "assist": "Morgan Rogers"},
-    {"minute": "60'", "scorer": "Pedro Neto", "assist": "Morgan Rogers"},
-    {"minute": "65'", "scorer": "Danny Welbeck", "assist": "Morgan Rogers"},
-    {"minute": "80'", "scorer": "Valentín Barco", "assist_status": "SOURCE_CONFLICT_OR_UNCLEAR"},
-    {"minute": "90+4'", "scorer": "Danny Welbeck", "assist": "Valentín Barco"}
+    {"minute_raw": "53'", "scorer": "Cole Palmer", "penalty": true, "score_after": "1-2"},
+    {"minute_raw": "55'", "scorer": "Cole Palmer", "assist": "Morgan Rogers", "score_after": "2-2"},
+    {"minute_raw": "60'", "scorer": "Pedro Neto", "assist": "Morgan Rogers", "score_after": "3-2"},
+    {"minute_raw": "65'", "scorer": "Danny Welbeck", "assist": "Morgan Rogers", "score_after": "4-2"},
+    {"minute_raw": "80'", "scorer": "Valentín Barco", "assist": "Morgan Rogers", "assist_status": "CORROBORATED_BY_SKY_REPORT", "score_after": "5-3"},
+    {"minute_raw": "90+4'", "minute_base": 90, "stoppage_minute": 4, "timing_phase": "second_half_stoppage", "scorer": "Danny Welbeck", "assist": "Valentín Barco", "score_after": "6-3"}
   ],
   "cards": {
     "leeds": {"yellow": [], "red": []},
-    "chelsea": {"yellow": [{"minute": "45+1'", "name": "Reggie Watson", "reason": "Foul"}], "red": []},
-    "staff": [{"minute": "82'", "name": "Xabi Alonso", "team": "Chelsea", "card": "yellow", "reason": "Dissent/argument", "status": "SECONDARY_SOURCE_CORROBORATION_REQUIRED"}]
+    "chelsea": {"yellow": [{"minute_raw": "45+1'", "minute_base": 45, "stoppage_minute": 1, "timing_phase": "first_half_stoppage", "name": "Reggie Watson", "reason": "Foul"}], "red": []},
+    "staff": [{"name": "Xabi Alonso", "team": "Chelsea", "card": "yellow", "reason": "Argument", "minute_raw": "On bench", "status": "SOFASCORE_VISIBLE_NO_CANONICAL_WRITE_PROPOSED"}]
+  },
+  "canonical_schema_reconciliation": {
+    "production_project": "nztiaxnrwojraiwipwjj",
+    "canonical_max_match_id_observed": 4857,
+    "candidate_match_id": 4858,
+    "candidate_match_id_status": "PROPOSAL_ONLY_NOT_ASSIGNED",
+    "competition_id": 4,
+    "competition_name": "League Cup",
+    "opponent_club_id": 53,
+    "leeds_manager_id": 49,
+    "leeds_manager_spell_id": 57,
+    "leeds_captain_player_id": 866,
+    "all_20_leeds_squad_names_match_existing_canonical_player_ids": true,
+    "provider_ids_written_to_canonical_fields": false
+  },
+  "validation_results": {
+    "fixture_identity": "PASS_EXCEPT_PROVIDER_EVENT_ID",
+    "date": "PASS",
+    "competition": "PASS",
+    "round": "PASS",
+    "venue": "PASS",
+    "full_time_score": "PASS",
+    "half_time_score": "PASS",
+    "result_consistency": "PASS",
+    "kickoff": "PASS_VERIFIED_15_MINUTE_DELAY",
+    "referee": "PASS",
+    "attendance": "BLOCK_SECONDARY_ONLY",
+    "leeds_manager": "PASS",
+    "opposition_manager": "BLOCK_IDENTITY_MISSING",
+    "captain": "PASS",
+    "starters": "PASS_11",
+    "substitutions": "PASS_5_USED",
+    "appearance_population": "PASS_16",
+    "unused_bench_exclusion": "PASS_4_EXCLUDED",
+    "leeds_goals": "PASS_3",
+    "leeds_assists": "PASS_3",
+    "opposition_goal_sequence": "PASS_6",
+    "penalties": "PASS_ONE_CHELSEA_PENALTY_GOAL",
+    "leeds_red_cards": "PASS_ZERO",
+    "opposition_red_cards": "PASS_ZERO",
+    "score_event_total_consistency": "PASS_9_GOALS",
+    "canonical_foreign_key_identity_precheck": "PASS_FOR_RESOLVED_LEEDS_AND_CLUB_IDENTITIES",
+    "duplicate_identity_precheck": "PASS",
+    "overall": "BLOCKED_PENDING_HARD_BLOCKERS"
   },
   "proposed_canonical_diff": {
     "status": "GENERATED_BUT_NOT_PROMOTABLE",
     "candidate_match_id": 4858,
-    "candidate_match_id_basis": "current canonical max match_id is 4857; candidate only, not assigned",
-    "competition_id_candidate": 4,
+    "candidate_match_id_basis": "Production max match_id is 4857; 4858 is proposal-only and not assigned until controlled promotion.",
     "operations_summary": {
       "matches": 1,
       "player_matches": 16,
@@ -90,23 +162,53 @@
       "leeds_goals": 3,
       "red_card_events": 0
     },
+    "player_matches_population": {
+      "rows": 16,
+      "started": 11,
+      "substitute": 5,
+      "unused_bench_rows": 0
+    },
+    "match_substitutions_population": {
+      "rows": 5,
+      "player_on_ids": [892, 894, 878, 895, 890],
+      "player_off_ids": [844, 887, 891, 853, 903]
+    },
+    "goal_population": {
+      "rows": 3,
+      "scorer_player_ids": [899, 853, 894],
+      "assist_player_ids": [898, 887, 895]
+    },
     "hard_blockers": [
-      "SofaScore provider event ID is not present in the browser-accessible evidence captured in this run; provider-namespaced match identity must be resolved before canonical diff promotion.",
-      "Xabi Alonso is verified as Chelsea manager but has no current managerial_people identity in production; create/reconcile that identity through the approved opposition-manager pipeline before promotion.",
-      "Attendance remains unresolved and must be either verified from an authoritative source or explicitly recorded as verified absent according to the ingestion rule.",
-      "Kick-off evidence conflicts between the scheduled 20:00 BST listing and SofaScore's 19:15 UTC event time; resolve whether 19:15 UTC reflects actual kick-off before canonical write."
+      "The SofaScore provider event ID has not been captured through the provider-namespaced raw capture/reconciliation layer. The cross-source candidate 19872560 must not be treated as authoritative provider identity without that capture.",
+      "Xabi Alonso is verified as Chelsea manager but has no current managerial_people identity in production. Reconcile/create that identity through the approved opposition-manager pipeline before promotion.",
+      "Attendance 35,696 currently has secondary corroboration only. Obtain an authoritative club/EFL source or explicitly apply the verified-absence rule before promotion."
+    ],
+    "resolved_since_initial_review": [
+      "Kick-off is no longer a source conflict: scheduled 20:00 BST was delayed to actual 20:15 BST; SofaScore 19:15 UTC matches that actual time.",
+      "Valentín Barco's 80th-minute goal is now corroborated as assisted by Morgan Rogers in the Sky Sports report."
     ]
   },
+  "provenance": {
+    "raw_capture_requirement": "NOT_YET_SATISFIED_IN_REPOSITORY_ARTIFACT_CHAIN",
+    "immutable_provider_capture_expected_path": "source_data/sofascore/<provider_event_id>/",
+    "scheduler_contract": "Raw capture manifests require provider=sofascore, integer sofascore_event_id, database_writes=0 and canonical_lufc_ids_assigned=false.",
+    "staging_file_role": "Review evidence only; not canonical truth and not a substitute for the immutable provider capture artifact."
+  },
   "sources": [
-    {"name": "Sofascore match page", "url": "https://www.sofascore.com/football/match/chelsea-leeds-united/JsN", "used_for": ["finished state", "FT", "HT", "goals", "assists", "substitutions", "venue", "event time", "cards"]},
+    {"name": "Sofascore match page", "url": "https://www.sofascore.com/football/match/chelsea-leeds-united/JsN", "used_for": ["finished state", "FT", "HT", "goals", "assists", "substitutions", "venue", "actual event time", "cards", "staff card"]},
     {"name": "Chelsea official match report", "url": "https://www.chelseafc.com/en/news/article/match-report-chelsea-6-3-leeds-united", "used_for": ["lineups", "captains", "substitutes", "goals", "Chelsea booking", "referee"]},
     {"name": "Leeds United match report syndication", "url": "https://sports.yahoo.com/articles/leeds-exit-efl-cup-stamford-211200475.html", "used_for": ["Leeds lineup", "captain", "substitutions", "goals"]},
-    {"name": "Sky Sports match report", "url": "https://www.skysports.com/football/chelsea-vs-leeds-united/report/577586", "used_for": ["FT", "goals", "scheduled kick-off"]},
-    {"name": "Guardian match report", "url": "https://www.theguardian.com/football/2026/sep/09/chelsea-leeds-carabao-cup-third-round-match-report", "used_for": ["referee", "goal sequence", "lineups", "substitutions"]}
+    {"name": "Sky Sports match report", "url": "https://www.skysports.com/football/chelsea-vs-leeds-united/report/577586", "used_for": ["FT", "goals", "scheduled kick-off", "Morgan Rogers fourth-assist statement"]},
+    {"name": "talkSPORT delayed kick-off report", "url": "https://talksport.com/football/4570598/chelsea-leeds-carabao-cup-kick-off-delayed/", "used_for": ["verified actual 20:15 BST kick-off after 15-minute delay"]},
+    {"name": "Guardian match report/live coverage", "url": "https://www.theguardian.com/football/2026/sep/09/chelsea-leeds-carabao-cup-third-round-match-report", "used_for": ["referee", "goal sequence", "lineups", "substitutions"]},
+    {"name": "xgoal match data", "url": "https://xgoal.io/football/match/chelsea-leeds-united/19872560", "used_for": ["secondary attendance evidence", "cross-source candidate fixture ID only"]},
+    {"name": "Tribuna match data", "url": "https://tribuna.com/fr/match/chelsea-vs-leeds/", "used_for": ["independent secondary attendance display"]}
   ],
   "review_notes": [
-    "No production canonical table was written during this run.",
-    "The Brighton Golden appearance rule is satisfied: 11 starters + 5 proven players-on = 16 appearances. Four named unused substitutes are excluded from player_matches.",
-    "This file is staging/review evidence, not canonical truth. Any promotion must re-run the repository validation/promotion gate after resolving all hard blockers and verifying a pre-import backup."
+    "No production canonical table was written during this review refinement.",
+    "The Golden appearance rule is satisfied: 11 starters + 5 proven players-on = 16 appearances. Four named unused substitutes are excluded from player_matches.",
+    "Production Supabase was queried read-only to verify current max match_id, canonical Chelsea club identity, Daniel Farke manager/spell identity and the 20 Leeds squad player identities.",
+    "This staging file remains blocked and must not be promoted until the provider-namespaced raw capture identity, opposition-manager identity and attendance rule are resolved.",
+    "Before any production promotion, create and verify the established fresh pre-import backup and rollback manifest, then rerun the repository validation/promotion gate."
   ]
 }
