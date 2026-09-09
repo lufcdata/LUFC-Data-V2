@@ -26,6 +26,7 @@ type MatchRow = {
 
 type RedCardRef = { match_id: number; side: 'Leeds' | 'Opponent' };
 type VenueFilter = 'All' | 'Home' | 'Away' | 'Neutral';
+type GoalRange = [number, number];
 
 const PAGE_SIZE = 1000;
 const venueLabel = (v: string) => (v === 'H' ? 'Home' : v === 'A' ? 'Away' : 'Neutral');
@@ -53,6 +54,16 @@ const competitions = [
 const competitionDataValue = (v: string) =>
   v === 'Associate Members Cup' ? 'Football League Trophy' : v === 'Play-Off' ? 'Play-Offs' : v;
 const redCardIcon = '/appicons/Red%20Card%20Icon2.png';
+const goalRangeSliderCss = `
+.match-goal-range{position:relative;width:118px;height:18px}
+.match-goal-range-track{position:absolute;left:5px;right:5px;top:7px;height:4px;border-radius:999px;background:#303a52;pointer-events:none}
+.match-goal-range-fill{position:absolute;top:0;height:4px;border-radius:999px;background:#50E5E0}
+.match-goal-range input[type="range"]{position:absolute;left:0;top:0;width:118px;height:18px;margin:0;padding:0;appearance:none;-webkit-appearance:none;background:transparent;pointer-events:none;outline:none}
+.match-goal-range input[type="range"]::-webkit-slider-runnable-track{height:4px;background:transparent;border:0}
+.match-goal-range input[type="range"]::-webkit-slider-thumb{appearance:none;-webkit-appearance:none;width:12px;height:12px;margin-top:-4px;border-radius:50%;border:2px solid #10182b;background:#50E5E0;pointer-events:auto;cursor:pointer}
+.match-goal-range input[type="range"]::-moz-range-track{height:4px;background:transparent;border:0}
+.match-goal-range input[type="range"]::-moz-range-thumb{width:10px;height:10px;border-radius:50%;border:2px solid #10182b;background:#50E5E0;pointer-events:auto;cursor:pointer}
+`;
 
 function FormBadge({ result }: { result: 'W' | 'D' | 'L' }) {
   return <span className={`form-pill form-${result.toLowerCase()}`}>{result}</span>;
@@ -109,36 +120,65 @@ function RedCardFilter({ label, checked, onChange }: { label: string; checked: b
   );
 }
 
-function GoalSlider({
+function GoalRangeSlider({
   label,
   value,
   max,
   onChange,
 }: {
   label: string;
-  value: number | null;
+  value: GoalRange | null;
   max: number;
-  onChange: (value: number | null) => void;
+  onChange: (value: GoalRange | null) => void;
 }) {
+  const upper = Math.max(0, max);
+  const minValue = value?.[0] ?? 0;
+  const maxValue = value?.[1] ?? upper;
+  const denominator = Math.max(1, upper);
+  const left = (minValue / denominator) * 100;
+  const right = 100 - (maxValue / denominator) * 100;
+  const labelValue = value == null ? 'All' : minValue === maxValue ? String(minValue) : `${minValue}–${maxValue}`;
+  const normalise = (nextMin: number, nextMax: number): GoalRange | null =>
+    nextMin === 0 && nextMax === upper ? null : [nextMin, nextMax];
+
   return (
-    <div className="lb-filter-section" style={{ minWidth: 112 }}>
+    <div className="lb-filter-section" style={{ minWidth: 126 }}>
       <span className="lb-filter-label">
-        {label} <span className="metric-value">{value == null ? 'All' : value}</span>
+        {label} <span className="metric-value">{labelValue}</span>
       </span>
-      <input
-        type="range"
-        min={-1}
-        max={Math.max(0, max)}
-        step={1}
-        value={value == null ? -1 : value}
-        onChange={(e) => {
-          const next = Number(e.target.value);
-          onChange(next < 0 ? null : next);
-        }}
-        aria-label={`${label} goals`}
-        aria-valuetext={value == null ? 'All' : String(value)}
-        style={{ width: 108, accentColor: '#50E5E0', cursor: 'pointer' }}
-      />
+      <div className="match-goal-range">
+        <div className="match-goal-range-track">
+          <span className="match-goal-range-fill" style={{ left: `${left}%`, right: `${right}%` }} />
+        </div>
+        <input
+          type="range"
+          min={0}
+          max={upper}
+          step={1}
+          value={minValue}
+          onChange={(e) => {
+            const next = Math.min(Number(e.target.value), maxValue);
+            onChange(normalise(next, maxValue));
+          }}
+          aria-label={`${label} goals minimum`}
+          aria-valuetext={`Minimum ${minValue}`}
+          style={{ zIndex: minValue >= maxValue - 1 ? 4 : 3 }}
+        />
+        <input
+          type="range"
+          min={0}
+          max={upper}
+          step={1}
+          value={maxValue}
+          onChange={(e) => {
+            const next = Math.max(Number(e.target.value), minValue);
+            onChange(normalise(minValue, next));
+          }}
+          aria-label={`${label} goals maximum`}
+          aria-valuetext={`Maximum ${maxValue}`}
+          style={{ zIndex: 3 }}
+        />
+      </div>
     </div>
   );
 }
@@ -169,8 +209,8 @@ export default function Matches({ onSelectMatch }: { onSelectMatch?: (matchId: n
   const [firstGoal, setFirstGoal] = useState('All First Goals');
   const [leedsRedOnly, setLeedsRedOnly] = useState(false);
   const [oppRedOnly, setOppRedOnly] = useState(false);
-  const [forGoals, setForGoals] = useState<number | null>(null);
-  const [againstGoals, setAgainstGoals] = useState<number | null>(null);
+  const [forGoals, setForGoals] = useState<GoalRange | null>(null);
+  const [againstGoals, setAgainstGoals] = useState<GoalRange | null>(null);
   const [htScore, setHtScore] = useState('All HT Scores');
   const [goalMargin, setGoalMargin] = useState('All');
   const [leedsManager, setLeedsManager] = useState('All Leeds Managers');
@@ -266,8 +306,8 @@ export default function Matches({ onSelectMatch }: { onSelectMatch?: (matchId: n
         (firstGoal === 'All First Goals' || r.first_goal === firstGoal) &&
         (!leedsRedOnly || leedsReds > 0) &&
         (!oppRedOnly || oppReds > 0) &&
-        (forGoals == null || r.leeds_score === forGoals) &&
-        (againstGoals == null || r.opponent_score === againstGoals) &&
+        (forGoals == null || (r.leeds_score >= forGoals[0] && r.leeds_score <= forGoals[1])) &&
+        (againstGoals == null || (r.opponent_score >= againstGoals[0] && r.opponent_score <= againstGoals[1])) &&
         (htScore === 'All HT Scores' || rowHtScore === htScore) &&
         (goalMargin === 'All' || r.leeds_score - r.opponent_score === Number(goalMargin)) &&
         (leedsManager === 'All Leeds Managers' || r.leeds_manager === leedsManager) &&
@@ -294,6 +334,7 @@ export default function Matches({ onSelectMatch }: { onSelectMatch?: (matchId: n
 
   return (
     <>
+      <style>{goalRangeSliderCss}</style>
       <div className="card lb-table-card">
         <div className="lb-table-header">
           <div className="lb-title-group">
@@ -348,8 +389,8 @@ export default function Matches({ onSelectMatch }: { onSelectMatch?: (matchId: n
               <RedCardFilter label="Opp" checked={oppRedOnly} onChange={setOppRedOnly} />
             </div>
           </div>
-          <GoalSlider label="For" value={forGoals} max={maxForGoals} onChange={setForGoals} />
-          <GoalSlider label="Against" value={againstGoals} max={maxAgainstGoals} onChange={setAgainstGoals} />
+          <GoalRangeSlider label="For" value={forGoals} max={maxForGoals} onChange={setForGoals} />
+          <GoalRangeSlider label="Against" value={againstGoals} max={maxAgainstGoals} onChange={setAgainstGoals} />
           <div className="lb-filter-section">
             <span className="lb-filter-label">HT Score</span>
             <select className="lb-filter-select" style={{ minWidth: 104, width: 104 }} value={htScore} onChange={(e) => setHtScore(e.target.value)} aria-label="Half-time score">
@@ -453,7 +494,7 @@ export default function Matches({ onSelectMatch }: { onSelectMatch?: (matchId: n
         <div className="lb-legend-items">
           <span>Full Leeds United competitive match archive, paged in blocks of 1,000.</span>
           <span>Red-card columns and filters are populated from the canonical red-card event source.</span>
-          <span>For / Against sliders select an exact Leeds or opposition goal total; All clears the filter.</span>
+          <span>For / Against dual sliders select an inclusive minimum-to-maximum goal range; the full range is All.</span>
           <span>Goal Margin: green = positive, red = negative</span>
           <span>R Cup round</span>
           <span>First Goal Scored / Conceded / None</span>
