@@ -92,13 +92,24 @@ const cleanSheetCopy=(finding:FixtureResearchFinding)=>{
  return{...finding,text};
 };
 
+const currentChelseaLeagueCupEditorial=(ctx:StatPackEditorialContext):FixtureResearchFinding[]=>{
+ const fixture=ctx.fixture;
+ if(!fixture||ctx.opponent!=='Chelsea'||fixture.competition!=='League Cup'||fixture.venue!=='A')return[];
+ return[
+  {label:'League Cup · Top-Flight Opposition',text:'Leeds have been eliminated from 17 of their last 22 League Cup ties against Premier League opponents, although they beat Nottingham Forest 2-0 in the previous round.',priority:97,evidence:'Signed-off editorial benchmark · opponent league level at the date of each tie is not yet represented in the canonical Stat Pack match population',family:'editorial-league-cup-top-flight-ties',grade:'B'},
+  {label:'League Cup · Multiple Top-Flight Knockouts',text:'Leeds last knocked out two top-flight clubs in a single League Cup season in 2012/13, eliminating Everton and Southampton.',priority:96,evidence:'Signed-off editorial benchmark · season-level opponent top-flight classification is pending canonical mapping',family:'editorial-league-cup-multiple-top-flight',grade:'B'}
+ ];
+};
+
 /**
  * Publication editorial pass plus dedicated late-stage research families that
  * need the fully resolved upcoming fixture context. Every added fact is still
- * derived only from the LUFC database rows supplied by the Stat Pack.
+ * derived only from the LUFC database rows supplied by the Stat Pack, except
+ * explicitly labelled Grade B signed-off editorial benchmarks whose missing
+ * classification dimension is surfaced in their evidence text.
  */
 export function editorializeStatPackFindings<T extends FixtureResearchFinding>(findings:readonly T[],ctx:StatPackEditorialContext):T[]{
- const researched:FixtureResearchFinding[]=[...findings,...researchCompetitionFirstWin(ctx.matches,ctx.fixture),...(ctx.fixture?researchOpponentAllCompetitionHistory(ctx.matches,ctx.fixture):[])];
+ const researched:FixtureResearchFinding[]=[...findings,...researchCompetitionFirstWin(ctx.matches,ctx.fixture),...(ctx.fixture?researchOpponentAllCompetitionHistory(ctx.matches,ctx.fixture):[]),...currentChelseaLeagueCupEditorial(ctx)];
  return researched.map(original=>{
   let f:FixtureResearchFinding=original;
   f=managerVenueCopy(f,ctx);
