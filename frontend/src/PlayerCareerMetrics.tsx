@@ -7,6 +7,7 @@ type PlayerRow={position_group:string|null};
 type PlayerMatchRow={match_id:number};
 type MatchRow={season_id:number|null;opponent_score:number};
 type LeaderboardRow={player_id:number;appearances:number;starts:number;sub_apps:number;sub_off:number;won:number;win_pct:number|string;goals:number;gpg:number|string;captain:number;red_cards:number;penalties_taken:number;penalties_scored:number;penalties_missed:number;penalty_conversion_pct:number|string};
+type AssistProfile={eligible:boolean;assists:number;rank:number|null;clubs:unknown[]};
 
 const rankClass=(rank:string)=>rank==='1st'?' gold':rank==='2nd'?' silver':rank==='3rd'?' bronze':'';
 function ordinal(n:number){const m=n%100;if(m>=11&&m<=13)return`${n}th`;return`${n}${n%10===1?'st':n%10===2?'nd':n%10===3?'rd':'th'}`}
@@ -15,12 +16,13 @@ function rankFor(rows:LeaderboardRow[],playerId:number,key:keyof Pick<Leaderboar
 export default function PlayerCareerMetrics({playerId}:{playerId:number}){
  const[metrics,setMetrics]=useState<Metric[]>([]),[gkMetrics,setGkMetrics]=useState<Metric[]>([]);
  useEffect(()=>{let cancelled=false;(async()=>{if(!supabase)return;
-  const[{data:leaderboard,error:lbError},{data:player,error:playerError},{data:pm,error:pmError}]=await Promise.all([
+  const[{data:leaderboard,error:lbError},{data:player,error:playerError},{data:pm,error:pmError},{data:assistData,error:assistError}]=await Promise.all([
    supabase.rpc('filtered_player_leaderboard',{p_filter:'All',p_venue:'All'}),
    supabase.from('players').select('position_group').eq('player_id',playerId).maybeSingle(),
-   supabase.from('player_matches').select('match_id').eq('player_id',playerId)
-  ]);if(lbError||playerError||pmError||cancelled)return;
-  const rows=(leaderboard??[])as LeaderboardRow[],current=rows.find(r=>r.player_id===playerId),matchIds=((pm??[])as PlayerMatchRow[]).map(r=>r.match_id);if(!current){setMetrics([]);return}
+   supabase.from('player_matches').select('match_id').eq('player_id',playerId),
+   supabase.rpc('player_assist_profile_v1',{p_player_id:playerId})
+  ]);if(lbError||playerError||pmError||assistError||cancelled)return;
+  const rows=(leaderboard??[])as LeaderboardRow[],current=rows.find(r=>r.player_id===playerId),matchIds=((pm??[])as PlayerMatchRow[]).map(r=>r.match_id),assist=(assistData??null)as AssistProfile|null;if(!current){setMetrics([]);return}
   const{data:matches,error:matchError}=matchIds.length?await supabase.from('matches').select('season_id,opponent_score').in('match_id',matchIds):{data:[],error:null};if(matchError||cancelled)return;
   const matchRows=(matches??[])as MatchRow[],seasons=new Set(matchRows.map(m=>m.season_id).filter((v):v is number=>v!=null)).size,apps=Number(current.appearances),starts=Number(current.starts),subOn=Number(current.sub_apps),subOff=Number(current.sub_off),goals=Number(current.goals),wins=Number(current.won),winPct=Number(current.win_pct),captain=Number(current.captain),gpg=Number(current.gpg),reds=Number(current.red_cards),pens=Number(current.penalties_taken),penGoals=Number(current.penalties_scored),penMiss=Number(current.penalties_missed),penPct=Number(current.penalty_conversion_pct);
   const billyRanks:Record<string,string>|null=playerId===276?{Seasons:'4th','Goals Per Game':'206th'}:null;
@@ -31,6 +33,7 @@ export default function PlayerCareerMetrics({playerId}:{playerId:number}){
    {label:'Subbed On',value:String(subOn),fill:subOn?Math.max(1,apps?subOn/apps*100:0):0,rank:rankFor(rows,playerId,'sub_apps')},
    {label:'Subbed Off',value:String(subOff),fill:apps?subOff/apps*100:0,rank:rankFor(rows,playerId,'sub_off')},
    {label:'Goals Scored',value:String(goals),fill:apps?goals/apps*100:0,rank:rankFor(rows,playerId,'goals')},
+   ...(assist?.eligible?[{label:'Assists',value:String(Number(assist.assists)||0),fill:apps?Math.min(100,(Number(assist.assists)||0)/apps*100):0,rank:assist.rank?ordinal(Number(assist.rank)):undefined}]:[]),
    {label:'Penalties Taken',value:String(pens),fill:Math.min(100,pens*4),rank:rankFor(rows,playerId,'penalties_taken')},
    {label:'Penalties Scored',value:String(penGoals),fill:Math.min(100,penGoals*4),rank:rankFor(rows,playerId,'penalties_scored')},
    {label:'Penalties Missed',value:String(penMiss),fill:Math.min(100,penMiss*10),rank:rankFor(rows,playerId,'penalties_missed')},
