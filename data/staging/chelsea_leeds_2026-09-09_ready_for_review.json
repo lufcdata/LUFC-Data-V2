@@ -142,6 +142,38 @@
     "source_result": "Lost",
     "status": "PROPOSED_CANONICAL_INSERT"
   },
+  "goal_detail_enrichment": {
+    "backend_only": true,
+    "frontend_exposure": "NONE",
+    "source": "SofaScore statistics goal panels supplied by user",
+    "provider_event_id": 16950621,
+    "field_contract": {
+      "body_part_language": ["Left Foot", "Right Foot", "Head"],
+      "location_language": ["6 Yard", "18 Yard", "Outside Box"],
+      "location_rule": "Derive only from shot origin. Never infer from goal-mouth placement.",
+      "goal_mouth_placement_language": ["High Centre", "Low Left", "Low Right", "Low Centre"],
+      "goal_mouth_placement_backend_only": true
+    },
+    "rows": [
+      {"minute_raw":"23'","team_side":"LEEDS","scorer":"Tarik Muharemović","body_part":"Head","location":null,"location_status":"PENDING_SHOT_ORIGIN_CLASSIFICATION","situation_raw":"Corner","goal_mouth_placement":"High Centre"},
+      {"minute_raw":"48'","team_side":"LEEDS","scorer":"Brenden Aaronson","body_part":"Right Foot","location":null,"location_status":"PENDING_SHOT_ORIGIN_CLASSIFICATION","situation_raw":"Assisted","goal_mouth_placement":"Low Left"},
+      {"minute_raw":"53'","team_side":"OPPONENT","scorer":"Cole Palmer","body_part":"Left Foot","location":null,"location_status":"PENDING_SHOT_ORIGIN_CLASSIFICATION","situation_raw":"Penalty","goal_mouth_placement":"Low Right"},
+      {"minute_raw":"55'","team_side":"OPPONENT","scorer":"Cole Palmer","body_part":"Left Foot","location":null,"location_status":"PENDING_SHOT_ORIGIN_CLASSIFICATION","situation_raw":"Throw-in","goal_mouth_placement":"Low Left"},
+      {"minute_raw":"60'","team_side":"OPPONENT","scorer":"Pedro Neto","body_part":"Left Foot","location":null,"location_status":"PENDING_SHOT_ORIGIN_CLASSIFICATION","situation_raw":"Assisted","goal_mouth_placement":"Low Left"},
+      {"minute_raw":"65'","team_side":"OPPONENT","scorer":"Danny Welbeck","body_part":"Right Foot","location":null,"location_status":"PENDING_SHOT_ORIGIN_CLASSIFICATION","situation_raw":"Assisted","goal_mouth_placement":"Low Centre"},
+      {"minute_raw":"75'","team_side":"LEEDS","scorer":"Dominic Calvert-Lewin","body_part":"Right Foot","location":null,"location_status":"PENDING_SHOT_ORIGIN_CLASSIFICATION","situation_raw":"Assisted","goal_mouth_placement":"Low Centre"},
+      {"minute_raw":"80'","team_side":"OPPONENT","scorer":"Valentín Barco","body_part":"Left Foot","location":null,"location_status":"PENDING_SHOT_ORIGIN_CLASSIFICATION","situation_raw":"Open play","goal_mouth_placement":"Low Left"},
+      {"minute_raw":"90+4'","team_side":"OPPONENT","scorer":"Danny Welbeck","body_part":"Head","location":null,"location_status":"PENDING_SHOT_ORIGIN_CLASSIFICATION","situation_raw":"Assisted","goal_mouth_placement":"Low Centre"}
+    ],
+    "validation": {
+      "goal_count": 9,
+      "body_part_complete": true,
+      "goal_mouth_placement_complete": true,
+      "goal_mouth_placement_frontend_exposed": false,
+      "location_inferred_from_goal_zone": false,
+      "status": "PASS"
+    }
+  },
   "cards": {
     "leeds": {"yellow": [], "red": []},
     "chelsea": {"yellow": [{"minute_raw": "45+1'", "minute_base": 45, "stoppage_minute": 1, "timing_phase": "first_half_stoppage", "name": "Reggie Watson", "reason": "Foul"}], "red": []},
@@ -205,6 +237,7 @@
     "leeds_assists": "PASS_3",
     "opposition_goal_sequence": "PASS_6",
     "opposition_penalties": "PASS_1_SCORED_BY_COLE_PALMER_53",
+    "goal_detail_enrichment": "PASS_9_BODY_PART_AND_GOAL_MOUTH_PLACEMENT_BACKEND_ONLY",
     "leeds_red_cards": "PASS_ZERO",
     "opposition_red_cards": "PASS_ZERO",
     "score_event_total_consistency": "PASS_9_GOALS",
@@ -303,7 +336,7 @@
     ]
   },
   "sources": [
-    {"name": "Sofascore match page", "url": "https://www.sofascore.com/football/match/chelsea-leeds-united/JsN", "used_for": ["finished state", "FT", "HT", "goals", "assists", "substitutions", "venue", "actual event time", "cards", "staff card"]},
+    {"name": "Sofascore match page", "url": "https://www.sofascore.com/football/match/chelsea-leeds-united/JsN", "used_for": ["finished state", "FT", "HT", "goals", "assists", "substitutions", "venue", "actual event time", "cards", "staff card", "goal shot type", "goal situation", "goal-mouth placement"]},
     {"name": "Chelsea official match report", "url": "https://www.chelseafc.com/en/news/article/match-report-chelsea-6-3-leeds-united", "used_for": ["lineups", "captains", "substitutes", "goals", "Chelsea booking", "referee"]},
     {"name": "Leeds United match report syndication", "url": "https://sports.yahoo.com/articles/leeds-exit-efl-cup-stamford-211200475.html", "used_for": ["Leeds lineup", "captain", "substitutions", "goals"]},
     {"name": "Sky Sports match report", "url": "https://www.skysports.com/football/chelsea-vs-leeds-united/report/577586", "used_for": ["FT", "goals", "penalty", "scheduled kick-off", "Morgan Rogers fourth-assist statement"]},
@@ -319,6 +352,8 @@
     "The Golden appearance rule is satisfied: 11 starters + 5 proven players-on = 16 appearances. Four named unused substitutes are excluded from player_matches.",
     "Two Leeds debuts are represented through first player_matches appearances only; no duplicate players rows are proposed.",
     "Three Leeds goals and three assists are proposed in goals; one scored Chelsea penalty is proposed in opposition_penalties.",
+    "Goal-mouth placement is retained as backend-only structured evidence for all nine goals and is explicitly excluded from frontend exposure.",
+    "Shot-origin Location remains unpopulated until classified independently as 6 Yard, 18 Yard or Outside Box; goal-mouth placement is never used as a proxy for shot origin.",
     "Xabi Alonso is proposed as a new opposition managerial_people identity and linked through the established managerial assignment model; no provider ID is used as a canonical ID.",
     "Production Supabase was queried read-only for match, debut, manager, competition and penalty sequence prechecks.",
     "Before any production promotion, verify the immutable raw provider capture for 16950621, resolve the attendance promotion rule, create and verify the established fresh pre-import backup/rollback manifest, then rerun the repository promotion gate.",
