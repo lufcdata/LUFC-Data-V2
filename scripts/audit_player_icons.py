@@ -150,7 +150,7 @@ def main() -> None:
     ]}, indent=2))
     print(f"Audit report written to {REPORT_PATH}")
 
-    if len(players) != 902 or len(seen_names) != 902 or mismatches or missing_files:
+    if len(players) != 904 or len(seen_names) != 904 or mismatches or missing_files:
         raise SystemExit("Player icon audit failed")
 
 
