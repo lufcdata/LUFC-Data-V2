@@ -268,19 +268,23 @@ def build_proposed_canonical_diff(
         player_id = _resolved_leeds_player(identity_package, provider_player_id)
         started = row.get("started") is True
         substitute = row.get("substitute") is True
-        operations.append(
-            _operation(
-                "player_matches",
-                "INSERT",
-                {"match_id": canonical_match_id, "player_id": player_id},
-                {
-                    "started": started,
-                    "substitute": substitute,
-                    "lineup_order": index if index <= 17 else None,
-                    "source_slot": row.get("source_slot"),
-                },
-            )
+        operation = _operation(
+            "player_matches",
+            "INSERT",
+            {"match_id": canonical_match_id, "player_id": player_id},
+            {
+                "started": started,
+                "substitute": substitute,
+                "lineup_order": index if index <= 17 else None,
+                "source_slot": row.get("source_slot"),
+            },
         )
+        operation["provider_evidence"] = {
+            "provider": "sofascore",
+            "provider_event_id": event_id,
+            "provider_player_id": provider_player_id,
+        }
+        operations.append(operation)
 
     for row in leeds_goals:
         provider_player_id = _require_int(row.get("provider_player_id"), "goal scorer provider player ID")
