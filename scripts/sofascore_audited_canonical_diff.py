@@ -59,6 +59,8 @@ def build_audited_canonical_diff(
     )
     if base.get("database_writes") != 0 or base.get("promotion_performed") is not False:
         raise AuditedCanonicalDiffError("base canonical diff violated zero-write contract")
+    if source_bundle.get("database_writes") != 0 or source_bundle.get("promotion_performed") is not False:
+        raise AuditedCanonicalDiffError("source bundle violated zero-write contract")
 
     match_id = _require_int(base.get("canonical_match_id"), "canonical match ID")
     leeds_is_home = source_bundle.get("leeds_is_home")
@@ -84,9 +86,14 @@ def build_audited_canonical_diff(
     staged_events = source_bundle.get("staged_events")
     if not isinstance(staged_events, Mapping):
         raise AuditedCanonicalDiffError("source bundle has no staged-event population")
+    audited_staged_events = dict(staged_events)
+    audited_staged_events.setdefault("database_writes", 0)
+    audited_staged_events.setdefault("promotion_performed", False)
+    if audited_staged_events.get("database_writes") != 0 or audited_staged_events.get("promotion_performed") is not False:
+        raise AuditedCanonicalDiffError("staged-event population violated zero-write contract")
     opposition_goals = build_opposition_goal_proposal(
         canonical_match_id=match_id,
-        staged_events=staged_events,
+        staged_events=audited_staged_events,
     )
     opposition_captain = build_opposition_captain_proposal(
         canonical_match_id=match_id,
