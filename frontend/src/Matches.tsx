@@ -27,11 +27,20 @@ type MatchRow = {
 type RedCardRef = { match_id: number; side: 'Leeds' | 'Opponent' };
 type VenueFilter = 'All' | 'Home' | 'Away' | 'Neutral';
 type GoalRange = [number, number];
+type HTStateFilter = 'All HT States' | 'Leading' | 'Level' | 'Trailing';
 
 const PAGE_SIZE = 1000;
 const venueLabel = (v: string) => (v === 'H' ? 'Home' : v === 'A' ? 'Away' : 'Neutral');
 const resultCode = (r: string) => (r === 'Won' ? 'W' : r === 'Draw' ? 'D' : 'L');
 const day = (d: string) => new Date(`${d}T00:00:00`).toLocaleDateString('en-GB', { weekday: 'short' });
+const halfTimeState = (r: MatchRow): 'Leading' | 'Level' | 'Trailing' | null => {
+  if (r.half_time_leeds_score == null || r.half_time_opponent_score == null) return null;
+  if (r.half_time_leeds_score > r.half_time_opponent_score) return 'Leading';
+  if (r.half_time_leeds_score < r.half_time_opponent_score) return 'Trailing';
+  return 'Level';
+};
+const halfTimeColour = (state: ReturnType<typeof halfTimeState>) =>
+  state === 'Leading' ? '#89f1de' : state === 'Level' ? '#f0cb7d' : state === 'Trailing' ? '#e6739b' : undefined;
 const venues: VenueFilter[] = ['Home', 'Away', 'Neutral'];
 const competitions = [
   'Associate Members Cup',
@@ -212,6 +221,7 @@ export default function Matches({ onSelectMatch }: { onSelectMatch?: (matchId: n
   const [forGoals, setForGoals] = useState<GoalRange | null>(null);
   const [againstGoals, setAgainstGoals] = useState<GoalRange | null>(null);
   const [htScore, setHtScore] = useState('All HT Scores');
+  const [htState, setHtState] = useState<HTStateFilter>('All HT States');
   const [goalMargin, setGoalMargin] = useState('All');
   const [leedsManager, setLeedsManager] = useState('All Leeds Managers');
   const [page, setPage] = useState(1);
@@ -298,6 +308,7 @@ export default function Matches({ onSelectMatch }: { onSelectMatch?: (matchId: n
       const leedsReds = redCounts.get(`${r.match_id}:Leeds`) ?? 0;
       const oppReds = redCounts.get(`${r.match_id}:Opponent`) ?? 0;
       const rowHtScore = r.half_time_leeds_score == null || r.half_time_opponent_score == null ? null : `${r.half_time_leeds_score}–${r.half_time_opponent_score}`;
+      const rowHtState = halfTimeState(r);
       return (
         (competition === 'All Comps' || r.competition === competitionDataValue(competition)) &&
         (venue === 'All' || venueLabel(r.venue_type) === venue) &&
@@ -309,6 +320,7 @@ export default function Matches({ onSelectMatch }: { onSelectMatch?: (matchId: n
         (forGoals == null || (r.leeds_score >= forGoals[0] && r.leeds_score <= forGoals[1])) &&
         (againstGoals == null || (r.opponent_score >= againstGoals[0] && r.opponent_score <= againstGoals[1])) &&
         (htScore === 'All HT Scores' || rowHtScore === htScore) &&
+        (htState === 'All HT States' || rowHtState === htState) &&
         (goalMargin === 'All' || r.leeds_score - r.opponent_score === Number(goalMargin)) &&
         (leedsManager === 'All Leeds Managers' || r.leeds_manager === leedsManager) &&
         (!q ||
@@ -322,9 +334,9 @@ export default function Matches({ onSelectMatch }: { onSelectMatch?: (matchId: n
           (r.first_goal ?? '').toLowerCase().includes(q))
       );
     });
-  }, [rows, redCounts, search, competition, venue, opponent, result, firstGoal, leedsRedOnly, oppRedOnly, forGoals, againstGoals, htScore, goalMargin, leedsManager]);
+  }, [rows, redCounts, search, competition, venue, opponent, result, firstGoal, leedsRedOnly, oppRedOnly, forGoals, againstGoals, htScore, htState, goalMargin, leedsManager]);
 
-  useEffect(() => setPage(1), [search, competition, venue, opponent, result, firstGoal, leedsRedOnly, oppRedOnly, forGoals, againstGoals, htScore, goalMargin, leedsManager]);
+  useEffect(() => setPage(1), [search, competition, venue, opponent, result, firstGoal, leedsRedOnly, oppRedOnly, forGoals, againstGoals, htScore, htState, goalMargin, leedsManager]);
 
   const pageCount = Math.max(1, Math.ceil(visible.length / PAGE_SIZE));
   const safePage = Math.min(page, pageCount);
@@ -399,6 +411,15 @@ export default function Matches({ onSelectMatch }: { onSelectMatch?: (matchId: n
             </select>
           </div>
           <div className="lb-filter-section">
+            <span className="lb-filter-label">HT State</span>
+            <select className="lb-filter-select" style={{ minWidth: 104, width: 104 }} value={htState} onChange={(e) => setHtState(e.target.value as HTStateFilter)} aria-label="Half-time state">
+              <option value="All HT States">All States</option>
+              <option value="Leading">Leading</option>
+              <option value="Level">Level</option>
+              <option value="Trailing">Trailing</option>
+            </select>
+          </div>
+          <div className="lb-filter-section">
             <span className="lb-filter-label">Goal Margin</span>
             <select className="lb-filter-select" style={{ minWidth: 94, width: 94 }} value={goalMargin} onChange={(e) => setGoalMargin(e.target.value)} aria-label="Goal margin">
               <option value="All">Margin</option>
@@ -440,6 +461,7 @@ export default function Matches({ onSelectMatch }: { onSelectMatch?: (matchId: n
                     const open = () => onSelectMatch?.(r.match_id);
                     const leedsReds = redCounts.get(`${r.match_id}:Leeds`) ?? 0;
                     const oppReds = redCounts.get(`${r.match_id}:Opponent`) ?? 0;
+                    const rowHtState = halfTimeState(r);
                     return (
                       <tr
                         key={r.match_id}
@@ -470,7 +492,7 @@ export default function Matches({ onSelectMatch }: { onSelectMatch?: (matchId: n
                         <td style={{ textAlign: 'center' }}><RedCardMark count={oppReds} /></td>
                         <td>{r.stadium ?? '—'}</td>
                         <td>{r.first_goal ?? '—'}</td>
-                        <td className="metric-value">{r.half_time_leeds_score == null || r.half_time_opponent_score == null ? '—' : `${r.half_time_leeds_score}–${r.half_time_opponent_score}`}</td>
+                        <td className="metric-value" style={{ color: halfTimeColour(rowHtState) }}>{r.half_time_leeds_score == null || r.half_time_opponent_score == null ? '—' : `${r.half_time_leeds_score}–${r.half_time_opponent_score}`}</td>
                         <td className="metric-value">{r.attendance == null ? '—' : r.attendance.toLocaleString('en-GB')}</td>
                         <td>{r.leeds_manager ?? '—'}</td>
                         <td>{r.opposition_manager_name ?? '—'}</td>
@@ -499,6 +521,7 @@ export default function Matches({ onSelectMatch }: { onSelectMatch?: (matchId: n
           <span>R Cup round</span>
           <span>First Goal Scored / Conceded / None</span>
           <span>HT Score Leeds score – opponent score at half-time</span>
+          <span>HT State: Leading / Level / Trailing from the Leeds perspective</span>
           <span>W Win</span><span>D Draw</span><span>L Loss</span>
         </div>
       </div>
