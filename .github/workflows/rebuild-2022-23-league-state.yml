@@ -1,0 +1,17 @@
+name: Rebuild 2022-23 League State
+on:
+  push:
+    branches: [ui-bolt-opponents-v1]
+    paths:
+      - 'scripts/rebuild_2022_23_league_state.py'
+      - '.github/workflows/rebuild-2022-23-league-state.yml'
+jobs:
+  rebuild:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Rebuild and validate
+        run: python scripts/rebuild_2022_23_league_state.py
