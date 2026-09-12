@@ -22,6 +22,11 @@ type MatchRow = {
   leeds_manager: string | null;
   opposition_manager_name: string | null;
   first_goal: string | null;
+  league_tier: number | null;
+  league_position_before_match: number | null;
+  league_position_after_match: number | null;
+  league_position_change: number | null;
+  league_points_after_match: number | null;
 };
 
 type RedCardRef = { match_id: number; side: 'Leeds' | 'Opponent' };
@@ -33,6 +38,15 @@ const PAGE_SIZE = 1000;
 const venueLabel = (v: string) => (v === 'H' ? 'Home' : v === 'A' ? 'Away' : 'Neutral');
 const resultCode = (r: string) => (r === 'Won' ? 'W' : r === 'Draw' ? 'D' : 'L');
 const day = (d: string) => new Date(`${d}T00:00:00`).toLocaleDateString('en-GB', { weekday: 'short' });
+const ordinal = (value: number | null) => {
+  if (value == null) return '—';
+  const mod100 = value % 100;
+  const mod10 = value % 10;
+  const suffix = mod100 >= 11 && mod100 <= 13 ? 'th' : mod10 === 1 ? 'st' : mod10 === 2 ? 'nd' : mod10 === 3 ? 'rd' : 'th';
+  return `${value}${suffix}`;
+};
+const leagueChangeLabel = (value: number | null) => value == null || value === 0 ? '—' : value > 0 ? `↑${value}` : `↓${Math.abs(value)}`;
+const leagueChangeColour = (value: number | null) => value == null || value === 0 ? undefined : value > 0 ? '#50E5E0' : '#F73475';
 const halfTimeState = (r: MatchRow): 'Leading' | 'Level' | 'Trailing' | null => {
   if (r.half_time_leeds_score == null || r.half_time_opponent_score == null) return null;
   if (r.half_time_leeds_score > r.half_time_opponent_score) return 'Leading';
@@ -212,6 +226,7 @@ export default function Matches({ onSelectMatch }: { onSelectMatch?: (matchId: n
   const [error, setError] = useState<string | null>(supabaseConfigError);
   const [search, setSearch] = useState('');
   const [competition, setCompetition] = useState('All Comps');
+  const [leagueTier, setLeagueTier] = useState('All Tiers');
   const [venue, setVenue] = useState<VenueFilter>('All');
   const [opponent, setOpponent] = useState('All Opponents');
   const [result, setResult] = useState('All Results');
@@ -240,7 +255,7 @@ export default function Matches({ onSelectMatch }: { onSelectMatch?: (matchId: n
         for (let start = 0; ; start += PAGE_SIZE) {
           const { data, error } = await supabase!
             .from('match_centre_summary')
-            .select('match_id,match_date,season,opponent,opponent_crest_url,competition,round,venue_type,leeds_score,opponent_score,result,half_time_leeds_score,half_time_opponent_score,stadium,attendance,leeds_manager,opposition_manager_name,first_goal')
+            .select('match_id,match_date,season,opponent,opponent_crest_url,competition,round,venue_type,leeds_score,opponent_score,result,half_time_leeds_score,half_time_opponent_score,stadium,attendance,leeds_manager,opposition_manager_name,first_goal,league_tier,league_position_before_match,league_position_after_match,league_position_change,league_points_after_match')
             .order('match_date', { ascending: false })
             .order('match_id', { ascending: false })
             .range(start, start + PAGE_SIZE - 1);
@@ -277,6 +292,7 @@ export default function Matches({ onSelectMatch }: { onSelectMatch?: (matchId: n
 
   const opponents = useMemo(() => Array.from(new Set(rows.map((r) => r.opponent).filter(Boolean))).sort((a, b) => a.localeCompare(b)), [rows]);
   const managers = useMemo(() => Array.from(new Set(rows.map((r) => r.leeds_manager).filter((m): m is string => Boolean(m)))).sort((a, b) => a.localeCompare(b)), [rows]);
+  const leagueTiers = useMemo(() => Array.from(new Set(rows.map((r) => r.league_tier).filter((n): n is number => n != null))).sort((a, b) => a - b), [rows]);
   const firstGoalOptions = useMemo(() => {
     const order = ['Scored', 'Conceded', 'None', 'TBC'];
     const values = Array.from(new Set(rows.map((r) => r.first_goal).filter((v): v is string => Boolean(v))));
@@ -311,6 +327,7 @@ export default function Matches({ onSelectMatch }: { onSelectMatch?: (matchId: n
       const rowHtState = halfTimeState(r);
       return (
         (competition === 'All Comps' || r.competition === competitionDataValue(competition)) &&
+        (leagueTier === 'All Tiers' || r.league_tier === Number(leagueTier)) &&
         (venue === 'All' || venueLabel(r.venue_type) === venue) &&
         (opponent === 'All Opponents' || r.opponent === opponent) &&
         (result === 'All Results' || r.result === result) &&
@@ -334,9 +351,9 @@ export default function Matches({ onSelectMatch }: { onSelectMatch?: (matchId: n
           (r.first_goal ?? '').toLowerCase().includes(q))
       );
     });
-  }, [rows, redCounts, search, competition, venue, opponent, result, firstGoal, leedsRedOnly, oppRedOnly, forGoals, againstGoals, htScore, htState, goalMargin, leedsManager]);
+  }, [rows, redCounts, search, competition, leagueTier, venue, opponent, result, firstGoal, leedsRedOnly, oppRedOnly, forGoals, againstGoals, htScore, htState, goalMargin, leedsManager]);
 
-  useEffect(() => setPage(1), [search, competition, venue, opponent, result, firstGoal, leedsRedOnly, oppRedOnly, forGoals, againstGoals, htScore, htState, goalMargin, leedsManager]);
+  useEffect(() => setPage(1), [search, competition, leagueTier, venue, opponent, result, firstGoal, leedsRedOnly, oppRedOnly, forGoals, againstGoals, htScore, htState, goalMargin, leedsManager]);
 
   const pageCount = Math.max(1, Math.ceil(visible.length / PAGE_SIZE));
   const safePage = Math.min(page, pageCount);
@@ -362,6 +379,13 @@ export default function Matches({ onSelectMatch }: { onSelectMatch?: (matchId: n
             <select className="lb-filter-select" value={competition} onChange={(e) => setCompetition(e.target.value)} aria-label="Competition">
               <option value="All Comps">All Comps</option>
               {competitions.map((c) => <option key={c} value={c}>{c}</option>)}
+            </select>
+          </div>
+          <div className="lb-filter-section">
+            <span className="lb-filter-label">League Tier</span>
+            <select className="lb-filter-select" value={leagueTier} onChange={(e) => setLeagueTier(e.target.value)} aria-label="League tier">
+              <option value="All Tiers">All Tiers</option>
+              {leagueTiers.map((tier) => <option key={tier} value={tier}>Tier {tier}</option>)}
             </select>
           </div>
           <div className="lb-filter-section lb-venue-section">
@@ -449,7 +473,9 @@ export default function Matches({ onSelectMatch }: { onSelectMatch?: (matchId: n
               <table className="lb-table matches-table">
                 <thead>
                   <tr>
-                    <th>Match</th><th>Season</th><th>Day</th><th>Date</th><th style={{ minWidth: 190 }}>Opponent</th><th>Venue</th><th>Competition</th><th>R</th><th>Form</th><th>Score</th><th>Goal Margin</th>
+                    <th>Match</th><th>Season</th><th>Day</th><th>Date</th><th style={{ minWidth: 190 }}>Opponent</th><th>Venue</th><th>Competition</th>
+                    <th title="League tier">Tier</th><th title="League position before the match">Pos Before</th><th title="League position immediately after the match">Pos After</th><th title="League position movement caused by the match">Move</th><th title="League points after the match">Pts</th>
+                    <th>R</th><th>Form</th><th>Score</th><th>Goal Margin</th>
                     <th style={{ textAlign: 'center' }}><span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>Leeds <img src={redCardIcon} alt="Red card" style={{ width: 13, height: 13, objectFit: 'contain' }} /></span></th>
                     <th style={{ textAlign: 'center' }}><span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>Opp <img src={redCardIcon} alt="Red card" style={{ width: 13, height: 13, objectFit: 'contain' }} /></span></th>
                     <th>Stadium</th><th>First Goal</th><th>HT Score</th><th>Attendance</th><th>Leeds Manager</th><th>Opposition Manager</th>
@@ -484,6 +510,11 @@ export default function Matches({ onSelectMatch }: { onSelectMatch?: (matchId: n
                         <td style={{ minWidth: 190 }}><div className="team-cell" style={{ whiteSpace: 'nowrap' }}><ClubCrest crestUrl={r.opponent_crest_url} name={r.opponent} /><span className="team-name" style={{ whiteSpace: 'nowrap' }}>{r.opponent}</span></div></td>
                         <td>{venueLabel(r.venue_type)}</td>
                         <td>{r.competition}</td>
+                        <td className="metric-value" style={{ textAlign: 'center' }}>{r.league_tier == null ? '—' : `T${r.league_tier}`}</td>
+                        <td className="metric-value" style={{ textAlign: 'center' }}>{ordinal(r.league_position_before_match)}</td>
+                        <td className="metric-value" style={{ textAlign: 'center', fontWeight: 700 }}>{ordinal(r.league_position_after_match)}</td>
+                        <td className="metric-value" style={{ textAlign: 'center', color: leagueChangeColour(r.league_position_change), fontWeight: 700 }}>{leagueChangeLabel(r.league_position_change)}</td>
+                        <td className="metric-value" style={{ textAlign: 'center' }}>{r.league_points_after_match ?? '—'}</td>
                         <td className="metric-value">{r.round ?? '—'}</td>
                         <td><FormBadge result={form} /></td>
                         <td className="metric-value">{r.leeds_score}–{r.opponent_score}</td>
@@ -515,6 +546,8 @@ export default function Matches({ onSelectMatch }: { onSelectMatch?: (matchId: n
       <div className="card lb-legend">
         <div className="lb-legend-items">
           <span>Full Leeds United competitive match archive, paged in blocks of 1,000.</span>
+          <span>League state: Tier, position before, position after, movement and points are shown for league fixtures from 1920/21 onward.</span>
+          <span>↑ improved league position; ↓ dropped; — means no movement, not applicable, or the season opener has no prior in-season position.</span>
           <span>Red-card columns and filters are populated from the canonical red-card event source.</span>
           <span>For / Against dual sliders select an inclusive minimum-to-maximum goal range; the full range is All.</span>
           <span>Goal Margin: green = positive, red = negative</span>
