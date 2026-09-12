@@ -227,6 +227,7 @@ export default function Matches({ onSelectMatch }: { onSelectMatch?: (matchId: n
   const [search, setSearch] = useState('');
   const [competition, setCompetition] = useState('All Comps');
   const [leagueTier, setLeagueTier] = useState('All Tiers');
+  const [positionAfter, setPositionAfter] = useState('All Positions');
   const [venue, setVenue] = useState<VenueFilter>('All');
   const [opponent, setOpponent] = useState('All Opponents');
   const [result, setResult] = useState('All Results');
@@ -293,6 +294,7 @@ export default function Matches({ onSelectMatch }: { onSelectMatch?: (matchId: n
   const opponents = useMemo(() => Array.from(new Set(rows.map((r) => r.opponent).filter(Boolean))).sort((a, b) => a.localeCompare(b)), [rows]);
   const managers = useMemo(() => Array.from(new Set(rows.map((r) => r.leeds_manager).filter((m): m is string => Boolean(m)))).sort((a, b) => a.localeCompare(b)), [rows]);
   const leagueTiers = useMemo(() => Array.from(new Set(rows.map((r) => r.league_tier).filter((n): n is number => n != null))).sort((a, b) => a - b), [rows]);
+  const positionAfterOptions = useMemo(() => Array.from(new Set(rows.map((r) => r.league_position_after_match).filter((n): n is number => n != null))).sort((a, b) => a - b), [rows]);
   const firstGoalOptions = useMemo(() => {
     const order = ['Scored', 'Conceded', 'None', 'TBC'];
     const values = Array.from(new Set(rows.map((r) => r.first_goal).filter((v): v is string => Boolean(v))));
@@ -328,6 +330,7 @@ export default function Matches({ onSelectMatch }: { onSelectMatch?: (matchId: n
       return (
         (competition === 'All Comps' || r.competition === competitionDataValue(competition)) &&
         (leagueTier === 'All Tiers' || r.league_tier === Number(leagueTier)) &&
+        (positionAfter === 'All Positions' || r.league_position_after_match === Number(positionAfter)) &&
         (venue === 'All' || venueLabel(r.venue_type) === venue) &&
         (opponent === 'All Opponents' || r.opponent === opponent) &&
         (result === 'All Results' || r.result === result) &&
@@ -351,9 +354,9 @@ export default function Matches({ onSelectMatch }: { onSelectMatch?: (matchId: n
           (r.first_goal ?? '').toLowerCase().includes(q))
       );
     });
-  }, [rows, redCounts, search, competition, leagueTier, venue, opponent, result, firstGoal, leedsRedOnly, oppRedOnly, forGoals, againstGoals, htScore, htState, goalMargin, leedsManager]);
+  }, [rows, redCounts, search, competition, leagueTier, positionAfter, venue, opponent, result, firstGoal, leedsRedOnly, oppRedOnly, forGoals, againstGoals, htScore, htState, goalMargin, leedsManager]);
 
-  useEffect(() => setPage(1), [search, competition, leagueTier, venue, opponent, result, firstGoal, leedsRedOnly, oppRedOnly, forGoals, againstGoals, htScore, htState, goalMargin, leedsManager]);
+  useEffect(() => setPage(1), [search, competition, leagueTier, positionAfter, venue, opponent, result, firstGoal, leedsRedOnly, oppRedOnly, forGoals, againstGoals, htScore, htState, goalMargin, leedsManager]);
 
   const pageCount = Math.max(1, Math.ceil(visible.length / PAGE_SIZE));
   const safePage = Math.min(page, pageCount);
@@ -386,6 +389,13 @@ export default function Matches({ onSelectMatch }: { onSelectMatch?: (matchId: n
             <select className="lb-filter-select" value={leagueTier} onChange={(e) => setLeagueTier(e.target.value)} aria-label="League tier">
               <option value="All Tiers">All Tiers</option>
               {leagueTiers.map((tier) => <option key={tier} value={tier}>Tier {tier}</option>)}
+            </select>
+          </div>
+          <div className="lb-filter-section">
+            <span className="lb-filter-label">Pos After</span>
+            <select className="lb-filter-select" value={positionAfter} onChange={(e) => setPositionAfter(e.target.value)} aria-label="League position after match">
+              <option value="All Positions">All Positions</option>
+              {positionAfterOptions.map((pos) => <option key={pos} value={pos}>{ordinal(pos)}</option>)}
             </select>
           </div>
           <div className="lb-filter-section lb-venue-section">
@@ -474,11 +484,11 @@ export default function Matches({ onSelectMatch }: { onSelectMatch?: (matchId: n
                 <thead>
                   <tr>
                     <th>Match</th><th>Season</th><th>Day</th><th>Date</th><th style={{ minWidth: 190 }}>Opponent</th><th>Venue</th><th>Competition</th>
-                    <th title="League tier">Tier</th><th title="League position before the match">Pos Before</th><th title="League position immediately after the match">Pos After</th><th title="League position movement caused by the match">Move</th><th title="League points after the match">Pts</th>
                     <th>R</th><th>Form</th><th>Score</th><th>Goal Margin</th>
                     <th style={{ textAlign: 'center' }}><span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>Leeds <img src={redCardIcon} alt="Red card" style={{ width: 13, height: 13, objectFit: 'contain' }} /></span></th>
                     <th style={{ textAlign: 'center' }}><span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>Opp <img src={redCardIcon} alt="Red card" style={{ width: 13, height: 13, objectFit: 'contain' }} /></span></th>
                     <th>Stadium</th><th>First Goal</th><th>HT Score</th><th>Attendance</th><th>Leeds Manager</th><th>Opposition Manager</th>
+                    <th title="League tier">Tier</th><th title="League position before the match">Pos Before</th><th title="League position immediately after the match">Pos After</th><th title="League position movement caused by the match">Move</th><th title="League points after the match">Pts</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -510,11 +520,6 @@ export default function Matches({ onSelectMatch }: { onSelectMatch?: (matchId: n
                         <td style={{ minWidth: 190 }}><div className="team-cell" style={{ whiteSpace: 'nowrap' }}><ClubCrest crestUrl={r.opponent_crest_url} name={r.opponent} /><span className="team-name" style={{ whiteSpace: 'nowrap' }}>{r.opponent}</span></div></td>
                         <td>{venueLabel(r.venue_type)}</td>
                         <td>{r.competition}</td>
-                        <td className="metric-value" style={{ textAlign: 'center' }}>{r.league_tier == null ? '—' : `T${r.league_tier}`}</td>
-                        <td className="metric-value" style={{ textAlign: 'center' }}>{ordinal(r.league_position_before_match)}</td>
-                        <td className="metric-value" style={{ textAlign: 'center', fontWeight: 700 }}>{ordinal(r.league_position_after_match)}</td>
-                        <td className="metric-value" style={{ textAlign: 'center', color: leagueChangeColour(r.league_position_change), fontWeight: 700 }}>{leagueChangeLabel(r.league_position_change)}</td>
-                        <td className="metric-value" style={{ textAlign: 'center' }}>{r.league_points_after_match ?? '—'}</td>
                         <td className="metric-value">{r.round ?? '—'}</td>
                         <td><FormBadge result={form} /></td>
                         <td className="metric-value">{r.leeds_score}–{r.opponent_score}</td>
@@ -527,6 +532,11 @@ export default function Matches({ onSelectMatch }: { onSelectMatch?: (matchId: n
                         <td className="metric-value">{r.attendance == null ? '—' : r.attendance.toLocaleString('en-GB')}</td>
                         <td>{r.leeds_manager ?? '—'}</td>
                         <td>{r.opposition_manager_name ?? '—'}</td>
+                        <td className="metric-value" style={{ textAlign: 'center' }}>{r.league_tier == null ? '—' : `T${r.league_tier}`}</td>
+                        <td className="metric-value" style={{ textAlign: 'center' }}>{ordinal(r.league_position_before_match)}</td>
+                        <td className="metric-value" style={{ textAlign: 'center', fontWeight: 700 }}>{ordinal(r.league_position_after_match)}</td>
+                        <td className="metric-value" style={{ textAlign: 'center', color: leagueChangeColour(r.league_position_change), fontWeight: 700 }}>{leagueChangeLabel(r.league_position_change)}</td>
+                        <td className="metric-value" style={{ textAlign: 'center' }}>{r.league_points_after_match ?? '—'}</td>
                       </tr>
                     );
                   })}
