@@ -1,4 +1,4 @@
-name: Rebuild 2022-23 League State
+name: Rebuild Historical League State
 on:
   push:
     branches: [ui-bolt-opponents-v1]
@@ -13,5 +13,13 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Rebuild and validate
+      - name: Build and validate candidates
         run: python scripts/rebuild_2022_23_league_state.py
+      - name: Upload candidate audit
+        uses: actions/upload-artifact@v4
+        with:
+          name: leeds-before-change-candidates
+          path: |
+            leeds_before_change_candidates.csv
+            leeds_before_change_season_audit.csv
+          retention-days: 7
