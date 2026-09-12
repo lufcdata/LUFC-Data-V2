@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { ChevronDown, ChevronUp } from 'lucide-react';
 import { supabase, supabaseConfigError } from './supabase';
 
 type SeasonRef = {
@@ -43,6 +44,26 @@ type SeasonSummary = {
   leagueCup: string;
   europe: string;
 };
+
+type SortKey =
+  | 'season'
+  | 'tier'
+  | 'position'
+  | 'matches'
+  | 'won'
+  | 'drawn'
+  | 'lost'
+  | 'for'
+  | 'against'
+  | 'gd'
+  | 'cs'
+  | 'points'
+  | 'managers'
+  | 'status'
+  | 'faCup'
+  | 'leagueCup'
+  | 'europe';
+type SortDirection = 'asc' | 'desc';
 
 const PAGE_SIZE = 1000;
 const LEAGUE_MATCH_MAX = 46;
@@ -106,11 +127,18 @@ const europeanLabel = (competition: string) => {
   return competition;
 };
 
-const statusClass = (status: string) => {
-  if (status === 'Champions') return 'season-status-champions';
-  if (status === 'Promoted') return 'season-status-promoted';
-  if (status === 'Relegated') return 'season-status-relegated';
-  return 'season-status-current';
+const statusSortRank = (statuses: string[]) => {
+  if (statuses.includes('Champions')) return 4;
+  if (statuses.includes('Promoted')) return 3;
+  if (statuses.includes('Relegated')) return 2;
+  if (statuses.includes('Current')) return 1;
+  return 0;
+};
+
+const cupSortRank = (value: string) => {
+  if (value === '—') return 0;
+  const parts = value.split(' · ');
+  return Math.max(...parts.map((part) => roundRank(part.split(' ').at(-1) ?? null)));
 };
 
 const seasonStyles = `
@@ -119,26 +147,29 @@ const seasonStyles = `
 .season-slider-row{display:flex;align-items:center;gap:10px}
 .season-slider{width:100%;accent-color:#2F91ED;cursor:pointer}
 .season-slider-value{min-width:34px;text-align:center;font-family:'DM Mono',monospace;font-size:11px;font-weight:700;color:#2F91ED}
-.seasons-table{min-width:1540px;table-layout:auto}
+.seasons-table{min-width:1540px;table-layout:auto;font-family:'DM Mono',monospace}
 .seasons-table thead th{text-align:center}
 .seasons-table thead th:first-child{text-align:left}
-.seasons-table tbody td{text-align:center;white-space:nowrap}
+.seasons-table tbody td{text-align:center;white-space:nowrap;font-family:'DM Mono',monospace;font-size:10px}
 .seasons-table .season-name-col,.seasons-table .season-name-cell{position:sticky;left:0;z-index:4;background:#fff;text-align:left;min-width:98px}
 .seasons-table thead .season-name-col{z-index:6}
 .seasons-table tbody tr:hover .season-name-cell{background:#fafbfb}
-.season-name-cell{font-family:'Urbanist',sans-serif;font-size:12.5px;font-weight:700;color:#23292b}
-.season-tier{font-family:'DM Mono',monospace;font-weight:700}
+.season-name-cell{font-weight:700;color:#23292b}
+.season-tier{font-weight:700}
 .season-manager-cell{min-width:220px;max-width:280px;text-align:left!important;white-space:normal!important;line-height:1.45}
 .season-status-cell{min-width:170px;white-space:normal!important}
-.season-statuses{display:flex;justify-content:center;gap:5px;flex-wrap:wrap}
-.season-status-pill{display:inline-flex;align-items:center;height:21px;padding:0 7px;border-radius:999px;font-size:8px;font-weight:800;letter-spacing:.04em;text-transform:uppercase}
-.season-status-champions{background:#F2E01F;color:#161a1d}
-.season-status-promoted{background:#89F0DD;color:#264f49}
-.season-status-relegated{background:#E6739B;color:#fff}
-.season-status-current{background:#2F91ED;color:#fff}
+.season-statuses{display:flex;justify-content:center;gap:9px;flex-wrap:wrap;align-items:center}
+.season-status-mark{display:inline-flex;align-items:center;gap:3px;font-family:'DM Mono',monospace;font-size:10px;font-weight:700;white-space:nowrap}
+.season-status-promoted{color:#50E5E0}
+.season-status-relegated{color:#F73475}
+.season-status-champions{color:#F2E01F}
+.season-status-current{color:#2F91ED}
 .season-positive{color:#50E5E0!important;font-weight:700}
 .season-negative{color:#F73475!important;font-weight:700}
-.season-cup-cell{font-family:'DM Mono',monospace;font-size:10px;font-weight:600}
+.season-cup-cell{font-weight:600}
+.season-sort-button{display:inline-flex;align-items:center;justify-content:center;gap:3px;border:0;background:transparent;color:inherit;font:inherit;text-transform:inherit;letter-spacing:inherit;padding:0;cursor:pointer}
+.season-sort-button:hover,.season-sort-button.active{color:#2F91ED}
+.season-sort-icon{width:11px;height:11px;opacity:.85}
 .theme-dark .seasons-toolbar{border-bottom-color:#2c3752}
 .theme-dark .seasons-table .season-name-col,.theme-dark .seasons-table .season-name-cell{background:#192031}
 .theme-dark .seasons-table tbody tr:hover .season-name-cell{background:#222b42}
@@ -169,6 +200,8 @@ export default function Seasons() {
   const [matches, setMatches] = useState<SeasonMatch[]>([]);
   const [tierFilter, setTierFilter] = useState('All Tiers');
   const [matchLimit, setMatchLimit] = useState(46);
+  const [sortKey, setSortKey] = useState<SortKey>('season');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(supabaseConfigError);
 
@@ -270,8 +303,10 @@ export default function Seasons() {
       if (finalTier != null && nextTier != null && nextTier > finalTier) statuses.push('Relegated');
       if (season.season_id === newestSeasonId) statuses.push('Current');
 
-      const faCup = furthestRound(seasonMatches.filter((m) => m.competition === 'FA Cup'));
-      const leagueCup = furthestRound(seasonMatches.filter((m) => m.competition === 'League Cup'));
+      const rawFaCup = furthestRound(seasonMatches.filter((m) => m.competition === 'FA Cup'));
+      const rawLeagueCup = furthestRound(seasonMatches.filter((m) => m.competition === 'League Cup'));
+      const faCup = season.start_year === 1971 && rawFaCup === 'F' ? '🏆 F' : rawFaCup;
+      const leagueCup = season.start_year === 1967 && rawLeagueCup === 'F' ? '🏆 F' : rawLeagueCup;
       const europeanGroups = new Map<string, SeasonMatch[]>();
       for (const match of seasonMatches.filter((m) => EUROPEAN_COMPETITIONS.has(m.competition))) {
         const list = europeanGroups.get(match.competition) ?? [];
@@ -306,7 +341,76 @@ export default function Seasons() {
   }, [seasons, matchesBySeason, fullSeasonState, matchLimit]);
 
   const tiers = useMemo(() => Array.from(new Set(summaries.map((s) => s.tier).filter((n): n is number => n != null))).sort((a, b) => a - b), [summaries]);
-  const visible = useMemo(() => summaries.filter((s) => tierFilter === 'All Tiers' || s.tier === Number(tierFilter)), [summaries, tierFilter]);
+
+  const filtered = useMemo(
+    () => summaries.filter((s) => tierFilter === 'All Tiers' || s.tier === Number(tierFilter)),
+    [summaries, tierFilter],
+  );
+
+  const sortValue = (row: SeasonSummary, key: SortKey): string | number | null => {
+    switch (key) {
+      case 'season': return row.season.start_year;
+      case 'tier': return row.tier;
+      case 'position': return row.finalPosition;
+      case 'matches': return row.matchesPlayed;
+      case 'won': return row.won;
+      case 'drawn': return row.drawn;
+      case 'lost': return row.lost;
+      case 'for': return row.goalsFor;
+      case 'against': return row.goalsAgainst;
+      case 'gd': return row.goalDifference;
+      case 'cs': return row.cleanSheets;
+      case 'points': return row.points;
+      case 'managers': return row.managers.join(' / ');
+      case 'status': return statusSortRank(row.statuses);
+      case 'faCup': return cupSortRank(row.faCup.replace('🏆 ', ''));
+      case 'leagueCup': return cupSortRank(row.leagueCup.replace('🏆 ', ''));
+      case 'europe': return cupSortRank(row.europe);
+      default: return null;
+    }
+  };
+
+  const visible = useMemo(() => {
+    const multiplier = sortDirection === 'asc' ? 1 : -1;
+    return [...filtered].sort((a, b) => {
+      const av = sortValue(a, sortKey);
+      const bv = sortValue(b, sortKey);
+      if (av == null && bv == null) return b.season.start_year - a.season.start_year;
+      if (av == null) return 1;
+      if (bv == null) return -1;
+      if (typeof av === 'number' && typeof bv === 'number') {
+        const diff = av - bv;
+        return diff === 0 ? b.season.start_year - a.season.start_year : diff * multiplier;
+      }
+      const diff = String(av).localeCompare(String(bv));
+      return diff === 0 ? b.season.start_year - a.season.start_year : diff * multiplier;
+    });
+  }, [filtered, sortKey, sortDirection]);
+
+  const handleSort = (key: SortKey) => {
+    if (sortKey === key) {
+      setSortDirection((current) => current === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortKey(key);
+      setSortDirection(key === 'season' ? 'desc' : 'asc');
+    }
+  };
+
+  const SortHeader = ({ label, sort, className }: { label: string; sort: SortKey; className?: string }) => (
+    <th className={className}>
+      <button type="button" className={`season-sort-button ${sortKey === sort ? 'active' : ''}`} onClick={() => handleSort(sort)} aria-label={`Sort by ${label}`}>
+        <span>{label}</span>
+        {sortKey === sort ? (sortDirection === 'asc' ? <ChevronUp className="season-sort-icon" /> : <ChevronDown className="season-sort-icon" />) : null}
+      </button>
+    </th>
+  );
+
+  const renderStatus = (status: string) => {
+    if (status === 'Promoted') return <span key={status} className="season-status-mark season-status-promoted"><span aria-hidden="true">↑</span><span>Promoted</span></span>;
+    if (status === 'Relegated') return <span key={status} className="season-status-mark season-status-relegated"><span aria-hidden="true">↓</span><span>Relegated</span></span>;
+    if (status === 'Champions') return <span key={status} className="season-status-mark season-status-champions"><span aria-hidden="true">🏆</span><span>Champions</span></span>;
+    return <span key={status} className="season-status-mark season-status-current">Current</span>;
+  };
 
   return (
     <>
@@ -356,29 +460,29 @@ export default function Seasons() {
             <table className="lb-table seasons-table">
               <thead>
                 <tr>
-                  <th className="season-name-col">Season</th>
-                  <th>Tier</th>
-                  <th>Pos</th>
-                  <th>Matches</th>
-                  <th>Won</th>
-                  <th>Draw</th>
-                  <th>Lost</th>
-                  <th>For</th>
-                  <th>Against</th>
-                  <th>GD</th>
-                  <th>CS</th>
-                  <th>PTS</th>
-                  <th>Leeds Managers</th>
-                  <th>Champions / Promotion / Relegation</th>
-                  <th>FA Cup</th>
-                  <th>League Cup</th>
-                  <th>Europe</th>
+                  <SortHeader label="Season" sort="season" className="season-name-col" />
+                  <SortHeader label="Tier" sort="tier" />
+                  <SortHeader label="Pos" sort="position" />
+                  <SortHeader label="Matches" sort="matches" />
+                  <SortHeader label="Won" sort="won" />
+                  <SortHeader label="Draw" sort="drawn" />
+                  <SortHeader label="Lost" sort="lost" />
+                  <SortHeader label="For" sort="for" />
+                  <SortHeader label="Against" sort="against" />
+                  <SortHeader label="GD" sort="gd" />
+                  <SortHeader label="CS" sort="cs" />
+                  <SortHeader label="PTS" sort="points" />
+                  <SortHeader label="Leeds Managers" sort="managers" />
+                  <SortHeader label="Champions / Promotion / Relegation" sort="status" />
+                  <SortHeader label="FA Cup" sort="faCup" />
+                  <SortHeader label="League Cup" sort="leagueCup" />
+                  <SortHeader label="Europe" sort="europe" />
                 </tr>
               </thead>
               <tbody>
                 {visible.map((row) => (
                   <tr key={row.season.season_id}>
-                    <td className="season-name-cell">{row.season.display_name.replace('/', '/')}</td>
+                    <td className="season-name-cell">{row.season.display_name}</td>
                     <td className="metric-value season-tier">{row.tier == null ? '—' : `T${row.tier}`}</td>
                     <td className="metric-value" style={{ fontWeight: 700 }}>{ordinal(row.finalPosition)}</td>
                     <td className="metric-value">{row.matchesPlayed || '—'}</td>
@@ -392,7 +496,7 @@ export default function Seasons() {
                     <td className="metric-value" style={{ fontWeight: 700 }}>{row.points ?? '—'}</td>
                     <td className="season-manager-cell">{row.managers.length ? row.managers.join(' / ') : '—'}</td>
                     <td className="season-status-cell">
-                      {row.statuses.length ? <div className="season-statuses">{row.statuses.map((status) => <span key={status} className={`season-status-pill ${statusClass(status)}`}>{status}</span>)}</div> : '—'}
+                      {row.statuses.length ? <div className="season-statuses">{row.statuses.map(renderStatus)}</div> : '—'}
                     </td>
                     <td className="season-cup-cell">{row.faCup}</td>
                     <td className="season-cup-cell">{row.leagueCup}</td>
@@ -408,6 +512,7 @@ export default function Seasons() {
 
       <div className="card lb-legend">
         <div className="lb-legend-items">
+          <span>Click any column heading to sort; click again to reverse the order.</span>
           <span>The slider recalculates Pos, Matches, W/D/L, For/Against, GD, CS and PTS after the selected number of league matches.</span>
           <span>When a season contained fewer league matches than the selected number, its final available league record is shown.</span>
           <span>Champions / Promoted / Relegated are season-end outcomes and do not change with the slider.</span>
