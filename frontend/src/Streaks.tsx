@@ -1,4 +1,4 @@
-import {useEffect,useState} from 'react';
+import React,{useEffect,useState} from 'react';
 import {supabase} from './supabase';
 import './Streaks.css';
 type Mode='Players'|'Managers'|'Team';
