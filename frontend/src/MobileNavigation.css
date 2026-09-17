@@ -1,0 +1,19 @@
+/* Desktop retains the established horizontal section navigation. */
+.mobile-page-navigation{display:none}
+
+/* A long desktop navigation bar must never expand the mobile layout or cause Safari to zoom out. */
+@media (max-width:760px){
+ html,body,#root{width:100%;max-width:100%;min-width:0;overflow-x:clip}
+ .leaderboard-isolate{width:100%;max-width:100%;min-width:0;overflow-x:clip;padding:66px 12px 16px}
+ .leaderboard-isolate > :not(.theme-toggle):not(.mobile-page-navigation){max-width:100%;min-width:0}
+ .leaderboard-isolate .card{max-width:100%;min-width:0}
+ .page-nav{display:none!important}
+ .mobile-page-navigation{position:absolute;top:12px;left:12px;right:66px;height:40px;display:flex;align-items:center;gap:9px;min-width:0;max-width:calc(100% - 78px);padding:4px 10px;border:1px solid #dde1e2;border-radius:9px;background:#fff;z-index:6}
+ .mobile-page-navigation label{flex:0 0 auto;font:600 10px 'Manrope',sans-serif;color:#66717c}
+ .mobile-page-navigation select{flex:1;min-width:0;width:100%;height:30px;padding:4px 25px 4px 9px;border:1px solid #dde1e2;border-radius:7px;background:#f5f7fa;color:#222a35;font:700 13px 'Manrope',sans-serif;cursor:pointer}
+ .theme-toggle{top:17px;right:12px}
+ .theme-dark .mobile-page-navigation{background:#171829;border-color:#2a3550}
+ .theme-dark .mobile-page-navigation label{color:#aeb8cf}
+ .theme-dark .mobile-page-navigation select{background:#151b2c;border-color:#33405e;color:#f5f5f5}
+ .lb-table-wrap{max-width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch}
+}
